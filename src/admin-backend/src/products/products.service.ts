@@ -59,4 +59,20 @@ export class ProductsService {
     await this.productRepo.remove(product);
     return { message: `Product #${id} deleted successfully` };
   }
+  async findByCategory(category: string): Promise<Product[]> {
+  return this.productRepo.find({
+    where: { category },
+    order: { createdAt: 'DESC' },
+  });
+}
+
+async search(q: string): Promise<Product[]> {
+  return this.productRepo
+    .createQueryBuilder('product')
+    .where('LOWER(product.name) LIKE LOWER(:q)', { q: `%${q}%` })
+    .orWhere('LOWER(product.category) LIKE LOWER(:q)', { q: `%${q}%` })
+    .orWhere('LOWER(product.description) LIKE LOWER(:q)', { q: `%${q}%` })
+    .orderBy('product.createdAt', 'DESC')
+    .getMany();
+}
 }

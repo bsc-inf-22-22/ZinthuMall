@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ProductsModule } from './products/products.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { OrdersViewModule } from './orders-view/orders-view.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     }),
     AuthModule,
     ProductsModule,
-    CloudinaryModule],
+    CloudinaryModule,
+    OrdersViewModule],
   controllers: [AppController],
   providers: [AppService],
 })
