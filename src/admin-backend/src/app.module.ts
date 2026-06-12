@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ProductsModule } from './products/products.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { OrdersViewModule } from './orders-view/orders-view.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { OrdersViewModule } from './orders-view/orders-view.module';
     AuthModule,
     ProductsModule,
     CloudinaryModule,
-    OrdersViewModule],
+    OrdersViewModule,
+    AnalyticsModule],
   controllers: [AppController],
   providers: [AppService],
 })
