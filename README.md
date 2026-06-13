@@ -1,98 +1,50 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+ZinthuMall - Inventory Management API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+ Tech Stack
+The backend uses NestJS with TypeScript, PostgreSQL database, and Prisma as the ORM. Docker is optional for containerization.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Database Setup
 
-## Description
+First, create a PostgreSQL database called "zinthumall_db". Then create a .env file in your project root and add your database connection string with your PostgreSQL username and password.
+After that, run the Prisma migration command to create the product and inventory transaction tables in your database.
+ How to Run the Server
+Install all dependencies using npm install. Then start the development server with npm run start:dev. The API will run on http://localhost:3000.
+For production, first run npm run build to compile the code, then npm run start:prod to start the server.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+API Routes
 
-## Project setup
+There are six endpoints, all starting with /inventory:
+- GET /inventory - Gets all products with their current stock levels
+- GET /inventory/low-stock - Gets products with less than 5 units in stock
+- GET /inventory/out-of-stock - Gets products with zero stock
+- POST /inventory/add-stock - Adds stock to a product (requires productId and quantity in the request body)
+- POST /inventory/reduce-stock - Reduces stock for customer orders or adjustments
+- GET /inventory/history/productId - Shows all stock changes for a specific product
 
-```bash
-$ npm install
-```
+Response Examples
 
-## Compile and run the project
+When you request all inventory using GET /inventory, you'll receive an array of products showing their ID, product ID, name, quantity in stock, and stock status (IN_STOCK, LOW_STOCK, or OUT_OF_STOCK).
+When adding stock with POST /inventory/add-stock, you send a product ID and quantity. The response confirms success and shows the updated product with its new stock quantity.
+When reducing stock with POST /inventory/reduce-stock, you send a product ID and quantity. The response confirms success and shows the updated product. If there isn't enough stock, you'll receive an error message saying "Insufficient stock".
+When checking low stock products, you'll receive a list of products with less than 5 units remaining.
+When viewing transaction history, you'll see the product name, current stock, and a list of all past stock changes including quantities, transaction types (STOCK_IN, STOCK_OUT, or SALE), dates, and any notes.
 
-```bash
-# development
-$ npm run start
+ Docker Setup
 
-# watch mode
-$ npm run start:dev
+If you want to use Docker, first build the image using the docker build command. Then run the container using docker run, making sure to pass your .env file. Alternatively, you can use docker-compose up -d to start both the application and PostgreSQL together.
 
-# production mode
-$ npm run start:prod
-```
+Useful Commands
 
-## Run tests
+You can open Prisma Studio (a database GUI) using npx prisma studio to view and edit data visually.
+If you need to reset your database, use npx prisma migrate reset (this will delete all your data).
+If Prisma acts up, regenerate the client with npx prisma generate.
 
-```bash
-# unit tests
-$ npm run test
+Testing with cURL
 
-# e2e tests
-$ npm run test:e2e
+You can test the API using cURL commands. For example, GET requests can be tested by simply visiting the URL in your browser or using curl. For POST requests, you'll need to send JSON data with the content-type header set to application/json.
 
-# test coverage
-$ npm run test:cov
-```
+Troubleshooting
 
-## Deployment
+If you get database connection errors, make sure PostgreSQL is running on your computer. On Windows, you can check with the "pg_isready" command.
+If you get Prisma errors, try regenerating the Prisma client. If port 3000 is already in use, you can either stop the program using that port or change the port number in the main.ts file.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
