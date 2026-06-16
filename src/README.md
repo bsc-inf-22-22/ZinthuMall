@@ -1,83 +1,128 @@
-# Kachipapa Store — Backend Setup
+# Kachipapa Store — Flutter App
 
-## Quick Start (Everyone on the team)
+## 📁 Project Structure
 
-### Step 1 — Install Docker
-- **Ubuntu/Linux:** `sudo apt install docker.io docker-compose -y`
-- **Windows:** Download Docker Desktop from https://docker.com
-- **Mac:** Download Docker Desktop from https://docker.com
+```
+kachipapa_store/
+│
+├── lib/
+│   │
+│   ├── main.dart                          ← App entry point
+│   │
+│   ├── core/                              ← Shared across all features
+│   │   ├── theme/
+│   │   │   └── app_theme.dart             ← Colors, fonts, spacing
+│   │   ├── constants/
+│   │   │   └── app_constants.dart         ← API URLs, keys, strings
+│   │   └── widgets/                       ← Shared reusable widgets
+│   │
+│   └── features/                          ← Each screen is a "feature"
+│       ├── home/
+│       │   ├── data/
+│       │   │   └── models/
+│       │   │       └── product_model.dart ← Product data class
+│       │   └── presentation/
+│       │       ├── screens/
+│       │       │   └── home_screen.dart   ← Homepage UI
+│       │       └── widgets/
+│       │           └── product_card.dart  ← Reusable product card
+│       │
+│       ├── product/                       ← Product detail (coming next)
+│       ├── cart/                          ← Cart screen (coming next)
+│       ├── checkout/                      ← Checkout + Pachangu (coming next)
+│       ├── account/                       ← User account (coming next)
+│       └── seller/                        ← Seller dashboard (coming next)
+│
+├── assets/
+│   ├── fonts/                             ← PlayfairDisplay + DMSans .ttf files
+│   ├── images/                            ← Logo, placeholders
+│   └── icons/                             ← SVG icons
+│
+└── pubspec.yaml                           ← Dependencies & assets config
+```
 
-### Step 2 — Clone the repo
+---
+
+## 🏗️ Architecture — Feature-First Clean Architecture
+
+We organize code by **feature** (not by type). This means all
+code related to "home" lives in `features/home/`, all code for
+"cart" lives in `features/cart/`, etc.
+
+Each feature has 3 layers:
+
+```
+feature/
+  data/           ← Models, API calls, local storage
+  domain/         ← Business logic (coming later with Riverpod)
+  presentation/   ← UI: screens and widgets
+```
+
+**Why this matters:** When the app grows to 20+ screens, you can
+find everything in one place. A new developer can open `features/cart/`
+and understand the entire cart feature without touching anything else.
+
+---
+
+## 🧠 Key Flutter Concepts Used
+
+| Concept | Where | Why |
+|---------|-------|-----|
+| `StatefulWidget` | HomeScreen, ProductCard | Mutable state (countdown, wishlist toggle) |
+| `StatelessWidget` | KachipapaStoreApp | No internal state needed |
+| `CustomScrollView + Slivers` | HomeScreen | Performant scrolling with sticky header |
+| `SliverGrid` | HomeScreen | Lazy-loading product grid |
+| `AnimatedContainer` | Category circles, tabs | Smooth selection animations |
+| `Timer.periodic` | Flash sale countdown | Runs code every second |
+| `initState / dispose` | HomeScreen | Start timer on open, cancel on close |
+| `factory fromJson` | ProductModel | Convert API JSON → Dart object |
+| `copyWith` | ProductModel | Immutable updates |
+| `GestureDetector` | Cards, circles | Tap detection |
+
+---
+
+## 🚀 How to Run
+
 ```bash
-git clone https://github.com/bsc-inf-22-22/ZinthuMall.git
-cd ZinthuMall
+# 1. Get dependencies
+flutter pub get
+
+# 2. Add fonts to assets/fonts/ (download from Google Fonts)
+#    - PlayfairDisplay-Regular.ttf
+#    - PlayfairDisplay-Bold.ttf
+#    - DMSans-Regular.ttf
+#    - DMSans-Medium.ttf
+#    - DMSans-SemiBold.ttf
+
+# 3. Run the app
+flutter run
 ```
 
-### Step 3 — Run everything
-```bash
-docker-compose up --build
+---
+
+## 🔗 Connection to NestJS Backend
+
+The Flutter app will talk to NestJS via REST API:
+
+```
+Flutter App  →  HTTP Request  →  NestJS API  →  PostgreSQL
+Flutter App  ←  JSON Response ←  NestJS API  ←  PostgreSQL
 ```
 
-Wait for these messages:
-```
-kachipapa_postgres   | database system is ready to accept connections
-kachipapa_admin      | Kachipapa Admin API running on http://localhost:3000/api
-kachipapa_inventory  | ZinthuMall Inventory API running on http://localhost:3001
-```
+All API calls will go through `AppConstants.apiBaseUrl`.
+Products, orders, users — all come from the NestJS server.
 
-### Step 4 — Test it works
-Open your browser:
-- http://localhost:3000/api → Admin Backend ✅
-- http://localhost:3001 → Inventory Service ✅
+---
 
-### Step 5 — Register the admin (first time only!)
-```bash
-curl -X POST http://localhost:3000/api/admin/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@kachipapa.mw","password":"Admin@1234"}'
-```
+## 📦 Coming Next (in order)
 
-### Step 6 — Run Flutter app
-```bash
-cd your-flutter-project
-flutter run -d chrome
-```
-
-Long press the KachipapaStore logo → Admin Login → use the credentials above.
-
-## API Endpoints
-
-### Auth
-| Method | URL | Description |
-|--------|-----|-------------|
-| POST | /api/admin/auth/register | Register admin (once only) |
-| POST | /api/admin/auth/login | Login → returns JWT token |
-
-### Products
-| Method | URL | Auth |
-|--------|-----|------|
-| GET | /api/products | No |
-| GET | /api/products/:id | No |
-| GET | /api/products/category/:cat | No |
-| POST | /api/products | Yes (JWT) |
-| PATCH | /api/products/:id | Yes (JWT) |
-| DELETE | /api/products/:id | Yes (JWT) |
-
-### Inventory
-| Method | URL | Description |
-|--------|-----|-------------|
-| GET | /inventory | All products with stock |
-| GET | /inventory/low-stock | Products with < 5 units |
-| POST | /inventory/add-stock | Add stock |
-| POST | /inventory/reduce-stock | Reduce stock |
-
-## Stop the backend
-```bash
-docker-compose down
-```
-
-## Fresh start (wipe database)
-```bash
-docker-compose down -v
-docker-compose up --build
-```
+1. ✅ Homepage (done)
+2. 🔜 Category screen (Men, Women, Home with filters)
+3. 🔜 Product detail screen
+4. 🔜 Cart screen
+5. 🔜 Checkout screen + Pachangu payment integration
+6. 🔜 Login / Register screen
+7. 🔜 Seller Dashboard screen
+8. 🔜 NestJS backend setup (modules, controllers, services)
+9. 🔜 PostgreSQL database schema + TypeORM entities
+10. 🔜 Pachangu API integration on the backend
