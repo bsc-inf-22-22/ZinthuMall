@@ -8,6 +8,8 @@ import { ProductsModule } from './products/products.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { OrdersViewModule } from './orders-view/orders-view.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ReviewsViewModule } from './reviews-view/reviews-view.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,7 +31,9 @@ TypeOrmModule.forRoot({
     ProductsModule,
     CloudinaryModule,
     OrdersViewModule,
-    AnalyticsModule],
+    AnalyticsModule,
+    ReviewsViewModule,
+    NotificationsModule],
   controllers: [AppController],
   providers: [AppService],
 })
