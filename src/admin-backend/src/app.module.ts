@@ -10,6 +10,7 @@ import { OrdersViewModule } from './orders-view/orders-view.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReviewsViewModule } from './reviews-view/reviews-view.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ TypeOrmModule.forRoot({
     OrdersViewModule,
     AnalyticsModule,
     ReviewsViewModule,
-    NotificationsModule],
+    NotificationsModule,
+    SettingsModule],
   controllers: [AppController],
   providers: [AppService],
 })
