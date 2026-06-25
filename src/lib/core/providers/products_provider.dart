@@ -98,6 +98,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
     int?    discount,
     String? description,
     List<String>? sizes,
+    String? imageUrl,
   }) async {
     try {
       // Call API — creates product in PostgreSQL
@@ -109,6 +110,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
         discount:    discount,
         description: description,
         sizes:       sizes,
+        imageUrl:    imageUrl,
       );
 
       // Update local state — adds to existing list
@@ -128,6 +130,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
         discount:    discount,
         description: description,
         sizes:       sizes ?? [],
+        imageUrl:    imageUrl,
         createdAt:   now,
         updatedAt:   now,
       );

@@ -861,6 +861,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final _discountController  = TextEditingController();
   final _stockController     = TextEditingController();
   final _descController      = TextEditingController();
+  final _imageUrlController  = TextEditingController();
 
   String       _category = 'mens_clothing';
   List<String> _selectedSizes = [];
@@ -875,6 +876,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     _discountController.dispose();
     _stockController.dispose();
     _descController.dispose();
+    _imageUrlController.dispose();
     super.dispose();
   }
 
@@ -893,6 +895,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         discount:    _discountController.text.isNotEmpty
                        ? int.tryParse(_discountController.text)
                        : null,
+        imageUrl:     _imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : null,
         description: _descController.text.trim().isNotEmpty
                        ? _descController.text.trim()
                        : null,
@@ -1045,6 +1048,19 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                         const SizedBox(height: 16),
 
                         // Sizes
+                        // Image URL
+                        _lbl('Product Image URL (optional)'),
+                        TextFormField(
+                          controller: _imageUrlController,
+                          decoration: _dec('https://res.cloudinary.com/...'),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '💡 Upload your image to Cloudinary and paste the URL here',
+                          style: GoogleFonts.dmSans(fontSize: 11, color: AppTheme.textHint),
+                        ),
+                        const SizedBox(height: 16),
+
                         _lbl('Available Sizes (optional)'),
                         Wrap(
                           spacing: 8,

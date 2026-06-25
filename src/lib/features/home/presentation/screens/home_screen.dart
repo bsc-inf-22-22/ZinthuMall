@@ -315,7 +315,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.shopping_cart_outlined, color: AppTheme.primaryRed),
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/cart'),
               ),
               if (_cartCount > 0)
                 Positioned(

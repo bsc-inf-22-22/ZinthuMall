@@ -214,7 +214,17 @@ class ApiService {
   // The other fields (name, price, etc.) are also form fields.
   // We use MultipartRequest for this, not regular JSON.
   // ----------------------------------------------------------
-  Future<ProductModel> createProduct({
+  /// GET /api/products/:id
+  Future<Map<String, dynamic>> getProductById(String id) async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.adminBaseUrl}/products/$id'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    final data = _handleResponse(response);
+    return data as Map<String, dynamic>;
+  }
+
+    Future<ProductModel> createProduct({
     required String name,
     required String category,
     required double price,
@@ -222,12 +232,11 @@ class ApiService {
     int?    discount,
     String? description,
     List<String>? sizes,
-    // imageBytes is the actual file data — null if no image
+    String? imageUrl,
   }) async {
     final token  = await getToken();
     final url    = Uri.parse('${AppConstants.adminBaseUrl}/products');
 
-    // MultipartRequest for file + data combined
     final request = http.MultipartRequest('POST', url)
       ..headers['Authorization'] = 'Bearer $token'
       ..fields['name']     = name
@@ -237,8 +246,8 @@ class ApiService {
 
     if (discount    != null) request.fields['discount']    = discount.toString();
     if (description != null) request.fields['description'] = description;
+    if (imageUrl    != null) request.fields['imageUrl']    = imageUrl;
     if (sizes != null && sizes.isNotEmpty) {
-      // sizes is a simple-array in TypeORM — send as comma-separated
       request.fields['sizes'] = sizes.join(',');
     }
 
