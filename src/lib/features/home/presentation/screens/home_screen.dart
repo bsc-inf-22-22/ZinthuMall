@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/products_provider.dart';
+import '../../../../core/providers/cart_provider.dart';
 import '../../../category/presentation/screens/home_category_screen.dart';
 import '../../data/models/product_model.dart';
 import '../widgets/product_card.dart';
@@ -43,7 +44,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   int _selectedTabIndex      = 0;
   int _selectedCategoryIndex = 0;
-  int _cartCount             = 3;
 
   // Flash sale countdown
   int _countdownHours   = 4;
@@ -208,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             );
                           },
                           onAddToCart: () {
-                            setState(() => _cartCount++);
+                            ref.read(cartProvider.notifier).addItem(product);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('${product.name} added to cart!'),
@@ -315,9 +315,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.shopping_cart_outlined, color: AppTheme.primaryRed),
-                onPressed: () {},
+                onPressed: () => Navigator.pushNamed(context, '/cart'),
               ),
-              if (_cartCount > 0)
+              if (ref.watch(cartItemCountProvider) > 0)
                 Positioned(
                   top: 4, right: 4,
                   child: Container(
@@ -328,7 +328,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        '$_cartCount',
+                        '${ref.watch(cartItemCountProvider)}',
                         style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -500,10 +500,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return GestureDetector(
             onTap: () {
               setState(() => _selectedCategoryIndex = index);
-              // Navigate to full category screen for home
-              if (cat['key'] == 'domestics_home') {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HomeCategoryScreen()));
+              final key = cat['key'] as String;
+              if (key == 'domestics_home') {
+                Navigator.pushNamed(context, '/category/home');
+              } else if (key == 'mens_clothing') {
+                Navigator.pushNamed(context, '/category/mens');
+              } else if (key == 'womens_clothing') {
+                Navigator.pushNamed(context, '/category/womens');
               }
             },
             child: Container(
@@ -674,6 +677,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       elevation: 8,
       selectedLabelStyle: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600),
       unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 10),
+      onTap: (index) {
+        switch (index) {
+          case 0: break; // already on home
+          case 1: Navigator.pushNamed(context, '/search'); break;
+          case 2: Navigator.pushNamed(context, '/cart'); break;
+          case 3: Navigator.pushNamed(context, '/wishlist'); break;
+          case 4: Navigator.pushNamed(context, '/profile'); break;
+        }
+      },
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
