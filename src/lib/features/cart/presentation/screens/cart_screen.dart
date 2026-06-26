@@ -51,9 +51,14 @@ class CartScreen extends ConsumerWidget {
       ),
       body: cartItems.isEmpty
           ? _emptyCart(context)
-          : isMobile
-              ? _mobileLayout(context, ref, cartItems, cart)
-              : _desktopLayout(context, ref, cartItems, cart),
+          : LayoutBuilder(
+              builder: (ctx, constraints) {
+                final isDesktop = constraints.maxWidth > 700;
+                return isDesktop
+                    ? _desktopLayout(context, ref, cartItems, cart)
+                    : _mobileLayout(context, ref, cartItems, cart);
+              },
+            ),
     );
   }
 

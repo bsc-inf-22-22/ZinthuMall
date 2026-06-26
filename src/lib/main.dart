@@ -7,6 +7,7 @@ import 'features/admin/presentation/screens/admin_login_screen.dart';
 import 'features/admin/presentation/screens/admin_register_screen.dart';
 import 'features/category/presentation/screens/home_category_screen.dart';
 import 'features/category/presentation/screens/mens_category_screen.dart';
+import 'features/category/presentation/screens/womens_category_screen.dart';
 import 'features/cart/presentation/screens/cart_screen.dart';
 import 'features/checkout/presentation/screens/checkout_screen.dart';
 import 'features/auth/presentation/screens/customer_auth_screen.dart';
@@ -40,6 +41,7 @@ class KachipapaStoreApp extends StatelessWidget {
         '/admin/register':  (_) => const AdminRegisterScreen(),
         '/category/home':   (_) => const HomeCategoryScreen(),
         '/category/mens':   (_) => const MensCategoryScreen(),
+        '/category/womens': (_) => const WomensCategoryScreen(),
         '/cart':            (_) => const CartScreen(),
         '/checkout':        (_) => const CheckoutScreen(),
         '/login':           (_) => const CustomerAuthScreen(),
