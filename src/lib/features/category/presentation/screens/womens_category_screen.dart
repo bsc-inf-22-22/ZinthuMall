@@ -511,7 +511,7 @@ class _WomensCategoryScreenState extends State<WomensCategoryScreen> {
         final p = _products[i];
         return ProductCard(
           product: p,
-          onTap: () => Navigator.pushNamed(context, '/product/${p.id}'),
+          onTap: () => Navigator.pushNamed(context, '/product', arguments: p),
           onAddToCart: () => _showAddedToCart(p.name),
         );
       },
