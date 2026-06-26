@@ -26,7 +26,8 @@ import '../../../../core/providers/products_provider.dart';
 import '../../../category/presentation/screens/home_category_screen.dart';
 import '../../data/models/product_model.dart';
 import '../widgets/product_card.dart';
-
+import '../../../category/presentation/screens/mens_category_screen.dart';
+import '../../../category/presentation/screens/womens_category_screen.dart';
 // ----------------------------------------------------------
 // Changed from StatefulWidget → ConsumerStatefulWidget
 // ConsumerStatefulWidget = StatefulWidget + Riverpod ref
@@ -498,14 +499,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final cat = _categories[index];
           final isSelected = _selectedCategoryIndex == index;
           return GestureDetector(
-            onTap: () {
-              setState(() => _selectedCategoryIndex = index);
-              // Navigate to full category screen for home
-              if (cat['key'] == 'domestics_home') {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HomeCategoryScreen()));
-              }
-            },
+       onTap: () {
+  setState(() => _selectedCategoryIndex = index);
+
+  if (cat['key'] == 'mens_clothing') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MensCategoryScreen(),
+      ),
+    );
+  }
+
+  else if (cat['key'] == 'womens_clothing') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const WomensCategoryScreen(),
+      ),
+    );
+  }
+
+  else if (cat['key'] == 'domestics_home') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HomeCategoryScreen(),
+      ),
+    );
+  }
+},
             child: Container(
               margin: const EdgeInsets.only(right: 16),
               child: Column(children: [
