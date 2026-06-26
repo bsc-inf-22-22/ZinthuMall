@@ -12,6 +12,8 @@ import 'features/cart/presentation/screens/cart_screen.dart';
 import 'features/checkout/presentation/screens/checkout_screen.dart';
 import 'features/auth/presentation/screens/customer_auth_screen.dart';
 import 'features/seller/presentation/screens/seller_dashboard_screen.dart';
+import 'features/search/presentation/screens/search_screen.dart';
+import 'features/profile/presentation/screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +49,8 @@ class KachipapaStoreApp extends StatelessWidget {
         '/login':           (_) => const CustomerAuthScreen(),
         '/register':        (_) => const CustomerAuthScreen(startOnRegister: true),
         '/seller':          (_) => const SellerDashboardScreen(),
+        '/search':          (_) => const SearchScreen(),
+        '/profile':         (_) => const ProfileScreen(),
       },
     );
   }

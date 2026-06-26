@@ -680,10 +680,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onTap: (index) {
         switch (index) {
           case 0: break; // already on home
-          case 1: break; // search — coming soon
+          case 1: Navigator.pushNamed(context, '/search'); break;
           case 2: Navigator.pushNamed(context, '/cart'); break;
           case 3: break; // wishlist — coming soon
-          case 4: Navigator.pushNamed(context, '/login'); break;
+          case 4: Navigator.pushNamed(context, '/profile'); break;
         }
       },
       items: const [
