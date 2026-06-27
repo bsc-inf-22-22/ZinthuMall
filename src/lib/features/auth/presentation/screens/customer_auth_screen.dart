@@ -6,6 +6,8 @@
 // =============================================================
 
 import 'package:flutter/material.dart';
+import '../../../../core/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -67,8 +69,17 @@ class _CustomerAuthScreenState extends State<CustomerAuthScreen>
     setState(() { _loginLoading = true; _loginError = null; });
 
     try {
-      // TODO: Connect to customer auth backend when ready
-      await Future.delayed(const Duration(seconds: 1)); // simulate API
+      // Call real backend: POST /api/customer/auth/login
+      final api = ApiService();
+      final response = await api.loginCustomer(
+        email:    _loginEmailCtrl.text.trim(),
+        password: _loginPasswordCtrl.text,
+      );
+      // Save token to device storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('customer_token', response['access_token'] ?? '');
+      await prefs.setString('customer_name',  response['name'] ?? '');
+      await prefs.setString('customer_email', _loginEmailCtrl.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Logged in successfully! 🎉'),
@@ -86,8 +97,17 @@ class _CustomerAuthScreenState extends State<CustomerAuthScreen>
     setState(() { _regLoading = true; _regError = null; });
 
     try {
-      // TODO: Connect to customer auth backend when ready
-      await Future.delayed(const Duration(seconds: 1)); // simulate API
+      // Call real backend: POST /api/customer/auth/login
+      final api = ApiService();
+      final response = await api.loginCustomer(
+        email:    _loginEmailCtrl.text.trim(),
+        password: _loginPasswordCtrl.text,
+      );
+      // Save token to device storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('customer_token', response['access_token'] ?? '');
+      await prefs.setString('customer_name',  response['name'] ?? '');
+      await prefs.setString('customer_email', _loginEmailCtrl.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('Account created! Please log in. 🎉'),

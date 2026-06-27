@@ -358,3 +358,55 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
+
+  // ==========================================================
+  // CUSTOMER AUTH ENDPOINTS
+  // ==========================================================
+
+  /// POST /api/customer/auth/login
+  Future<Map<String, dynamic>> loginCustomer({
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/login');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  /// POST /api/customer/auth/register
+  Future<Map<String, dynamic>> registerCustomer({
+    required String name,
+    required String email,
+    required String password,
+    required String phone,
+  }) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/register');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({
+        'name':     name,
+        'email':    email,
+        'password': password,
+        'phone':    phone,
+      }),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  /// GET /api/customer/profile (needs customer JWT token)
+  Future<Map<String, dynamic>> getCustomerProfile(String token) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/profile');
+    final response = await _client.get(
+      url,
+      headers: {
+        ..._baseHeaders,
+        'Authorization': 'Bearer $token',
+      },
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
