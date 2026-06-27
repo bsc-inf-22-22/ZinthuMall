@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
+import 'features/home/data/models/product_model.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/admin/presentation/screens/admin_login_screen.dart';
 import 'features/admin/presentation/screens/admin_register_screen.dart';
@@ -20,6 +21,7 @@ import 'features/reviews/presentation/screens/reviews_screen.dart';
 import 'features/notifications/presentation/screens/notifications_screen.dart';
 import 'features/addresses/presentation/screens/addresses_screen.dart';
 import 'features/tracking/presentation/screens/tracking_screen.dart';
+import 'features/product/presentation/screens/product_detail_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +45,23 @@ class KachipapaStoreApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const HomeScreen(),
+      // onGenerateRoute handles routes that need arguments
+      // like /product which needs a ProductModel object
+      onGenerateRoute: (settings) {
+        if (settings.name == '/product') {
+          final product = settings.arguments as ProductModel;
+          return MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
+          );
+        }
+        if (settings.name == '/tracking') {
+          final orderId = settings.arguments as String? ?? '';
+          return MaterialPageRoute(
+            builder: (_) => TrackingScreen(orderId: orderId),
+          );
+        }
+        return null;
+      },
       routes: {
         '/home':            (_) => const HomeScreen(),
         '/admin':           (_) => const AdminLoginScreen(),
@@ -62,7 +81,6 @@ class KachipapaStoreApp extends StatelessWidget {
         '/reviews':         (_) => const ReviewsScreen(),
         '/notifications':   (_) => const NotificationsScreen(),
         '/addresses':       (_) => const AddressesScreen(),
-        '/tracking':        (_) => const TrackingScreen(),
       },
     );
   }
