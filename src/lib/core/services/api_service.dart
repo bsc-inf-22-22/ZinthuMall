@@ -410,3 +410,86 @@ class ApiException implements Exception {
     );
     return _handleResponse(response) as Map<String, dynamic>;
   }
+
+  // ==========================================================
+  // ORDERS ENDPOINTS (Friend 1 — Admin-backend)
+  // ==========================================================
+
+  /// GET /api/orders-view — all orders (admin only)
+  Future<List<Map<String, dynamic>>> getOrders() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/orders-view');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  /// POST /api/orders-view — place a new order
+  Future<Map<String, dynamic>> placeOrder({
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    required String deliveryAddress,
+    required String deliveryCity,
+    required double totalAmount,
+    required String paymentMethod,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/orders-view');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({
+        'customerName':    customerName,
+        'customerEmail':   customerEmail,
+        'customerPhone':   customerPhone,
+        'deliveryAddress': deliveryAddress,
+        'deliveryCity':    deliveryCity,
+        'totalAmount':     totalAmount,
+        'paymentMethod':   paymentMethod,
+        'items':           items,
+      }),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  // ==========================================================
+  // NOTIFICATIONS ENDPOINTS
+  // ==========================================================
+
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications/\$id/read');
+    await _client.patch(url, headers: headers);
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications/read-all');
+    await _client.patch(url, headers: headers);
+  }
+
+  // ==========================================================
+  // REVIEWS ENDPOINTS
+  // ==========================================================
+
+  Future<List<Map<String, dynamic>>> getReviews() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/reviews');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getProductReviews(int productId) async {
+    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/reviews/product/\$productId');
+    final response = await _client.get(url, headers: _baseHeaders);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+}
