@@ -139,7 +139,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _buildHeroBanner(),
+              child: LayoutBuilder(
+                builder: (context, constraints) => _buildHeroBanner(constraints.maxWidth),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -188,8 +190,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               : SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      // Responsive columns:
+                      // < 600px  → 2 columns (mobile)
+                      // < 900px  → 3 columns (tablet)
+                      // 900px+   → 4 columns (desktop)
+                      crossAxisCount: MediaQuery.of(context).size.width < 600
+                          ? 2
+                          : MediaQuery.of(context).size.width < 900
+                              ? 3
+                              : 4,
                       childAspectRatio: 0.62,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -199,14 +209,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final product = filteredProducts[index];
                         return ProductCard(
                           product: product,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Opening ${product.name}...'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.pushNamed(
+                          context,
+                          '/product',
+                          arguments: product,
+                        ),
                           onAddToCart: () {
                             ref.read(cartProvider.notifier).addItem(product);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +361,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHeroBanner() {
+  Widget _buildHeroBanner([double width = 400]) {
     return SizedBox(
       height: 260,
       child: Row(
