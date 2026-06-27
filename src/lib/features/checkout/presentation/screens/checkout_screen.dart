@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/cart_provider.dart';
+import '../../../../core/services/api_service.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -57,22 +58,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Connect to backend POST /api/orders
-      await Future.delayed(const Duration(seconds: 2));
+      // Get cart items and convert to order items format
+      final cartItems = ref.read(cartProvider);
+      final items = cartItems.map((item) => {
+        'productId':   item.product.id,
+        'productName': item.product.name,
+        'quantity':    item.quantity,
+        'price':       item.product.price,
+        'subtotal':    item.product.price * item.quantity,
+      }).toList();
+
+      // Calculate total
+      final total = cartItems.fold<double>(
+        0, (sum, item) => sum + (item.product.price * item.quantity),
+      );
+
+      // Call real backend POST /api/orders-view
+      final order = await ApiService().placeOrder(
+        customerName:    _nameCtrl.text.trim(),
+        customerEmail:   _emailCtrl.text.trim(),
+        customerPhone:   _phoneCtrl.text.trim(),
+        deliveryAddress: _addressCtrl.text.trim(),
+        deliveryCity:    _selectedCity,
+        totalAmount:     total,
+        paymentMethod:   _paymentMethod,
+        items:           items,
+      );
 
       if (!mounted) return;
+
+      // Clear cart after successful order
       ref.read(cartProvider.notifier).clearCart();
-      _showSuccessDialog();
+
+      // Show success with real order ID
+      _showSuccessDialog(orderId: order['id']?.toString() ?? '');
+
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Order failed: $e'),
+        content: Text('Order failed: \$e'),
         backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog({String orderId = ''}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -85,6 +116,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             style: GoogleFonts.playfairDisplay(
               fontSize: 24, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
+          if (orderId.isNotEmpty)
+            Text('Order #\$orderId',
+              style: GoogleFonts.dmSans(
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primaryRed,
+                fontSize: 16)),
+          const SizedBox(height: 4),
           Text('Your order has been placed successfully. We will contact you shortly.',
             textAlign: TextAlign.center,
             style: GoogleFonts.dmSans(color: AppTheme.textSecondary)),
@@ -92,6 +130,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           SizedBox(width: double.infinity, child: ElevatedButton(
             onPressed: () {
               Navigator.of(context).popUntil((r) => r.isFirst);
+              // Navigate to order history so customer can track order
+              Future.delayed(const Duration(milliseconds: 300), () {
+                Navigator.pushNamed(context, '/orders');
+              });
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryRed,
