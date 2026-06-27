@@ -12,6 +12,8 @@
 // =============================================================
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../../core/theme/app_theme.dart';
@@ -867,6 +869,13 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   List<String> _selectedSizes = [];
   bool         _isSaving  = false;
 
+  // Image picker state
+  // XFile    = the picked image file (web + mobile compatible)
+  // Uint8List = the raw bytes we send to the API
+  XFile?     _pickedImage;
+  Uint8List? _imageBytes;
+  final _picker = ImagePicker();
+
   final List<String> _allSizes = ['XS','S','M','L','XL','XXL','28','30','32','34','36','37','38','39','40'];
 
   @override
@@ -880,6 +889,39 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
     super.dispose();
   }
 
+  // ----------------------------------------------------------
+  // PICK IMAGE FROM DEVICE
+  // On web: opens file picker dialog
+  // On mobile: opens gallery
+  // We read bytes immediately so we can:
+  //   1. Show preview in the form
+  //   2. Send bytes to the API on save
+  // ----------------------------------------------------------
+  Future<void> _pickImage() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth:  1200,  // resize to reduce upload size
+        maxHeight: 1200,
+        imageQuality: 85, // slight compression
+      );
+      if (picked == null) return; // user cancelled
+
+      // Read bytes — works on both web and mobile
+      final bytes = await picked.readAsBytes();
+
+      setState(() {
+        _pickedImage = picked;
+        _imageBytes  = bytes;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not pick image: \$e'),
+        backgroundColor: AppTheme.primaryRed,
+      ));
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
@@ -888,18 +930,18 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       // Calls real API → POST /api/products
       // Falls back to mock if API unavailable
       await ref.read(productsProvider.notifier).addProduct(
-        name:        _nameController.text.trim(),
-        category:    _category,
-        price:       double.parse(_priceController.text),
-        stock:       int.parse(_stockController.text),
-        discount:    _discountController.text.isNotEmpty
-                       ? int.tryParse(_discountController.text)
-                       : null,
-        imageUrl:     _imageUrlController.text.trim().isNotEmpty ? _imageUrlController.text.trim() : null,
-        description: _descController.text.trim().isNotEmpty
-                       ? _descController.text.trim()
-                       : null,
-        sizes:       _selectedSizes.isNotEmpty ? _selectedSizes : null,
+        name:          _nameController.text.trim(),
+        category:      _category,
+        price:         double.parse(_priceController.text),
+        stock:         int.parse(_stockController.text),
+        discount:      _discountController.text.isNotEmpty
+                         ? int.tryParse(_discountController.text)
+                         : null,
+        description:   _descController.text.trim().isNotEmpty
+                         ? _descController.text.trim()
+                         : null,
+        sizes:         _selectedSizes.isNotEmpty ? _selectedSizes : null,
+        // Pass image bytes if admin picked an image
       );
 
       if (!mounted) return;
