@@ -13,12 +13,17 @@ async function bootstrap() {
     }),
   );
 
+  // FIXED: origin '*' allows ALL origins during development
+  // Change to specific URL when deploying to production
   app.enableCors({
-    origin: '*'
+    origin: '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   app.setGlobalPrefix('api');
 
   await app.listen(process.env.PORT ?? 3000);
+  console.log(`Kachipapa Admin API running on http://localhost:3000/api`);
 }
 bootstrap();

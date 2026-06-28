@@ -1,0 +1,127 @@
+# =============================================================
+# FILE: docker-compose.yml
+#
+# PURPOSE:
+#   Runs the entire Kachipapa Store backend with ONE command:
+#   docker-compose up --build
+#
+#   SERVICES STARTED:
+#   1. PostgreSQL database     → internal port 5432
+#   2. Admin backend           → http://localhost:3000/api
+#   3. Inventory service       → http://localhost:3001
+#
+#   FIRST TIME SETUP:
+#   1. Install Docker Desktop (Windows/Mac) or Docker Engine (Linux)
+#   2. Run: docker-compose up --build
+#   3. Wait for all 3 services to say "running"
+#   4. Open Flutter app and test!
+#
+#   SUBSEQUENT RUNS (no code changes):
+#   docker-compose up
+#
+#   STOP EVERYTHING:
+#   docker-compose down
+#
+#   STOP AND DELETE DATABASE (fresh start):
+#   docker-compose down -v
+# =============================================================
+
+version: '3.8'
+
+services:
+
+  # ============================================================
+  # 1. POSTGRESQL DATABASE
+  # Both backend services share this one database.
+  # Data is persisted in a Docker volume so it survives restarts.
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: kachipapa_postgres
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: "6369"
+      POSTGRES_DB:       zinthumall_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kachipapa_network
+    restart: unless-stopped
+    # Health check — other services wait until postgres is ready
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ============================================================
+  # 2. ADMIN BACKEND — Friend 1
+  # Auth (login/register) + Products CRUD + Orders + Analytics
+  # Flutter talks to: http://localhost:3000/api/...
+  # ============================================================
+  admin-backend:
+    build:
+      context: ./src/admin-backend
+      dockerfile: Dockerfile
+    container_name: kachipapa_admin
+    environment:
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_USER:     postgres
+      DB_PASS:     "6369"
+      DB_NAME:     zinthumall_db
+      JWT_SECRET:  kachipapa_mw_2025_secret_key
+      PORT:        3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kachipapa_network
+    restart: unless-stopped
+    volumes:
+      # Mount .env file into the container
+      - ./src/admin-backend/.env:/app/.env
+
+  # ============================================================
+  # 3. INVENTORY SERVICE — Friend 2
+  # Stock management (add stock, reduce stock, history)
+  # Flutter talks to: http://localhost:3001/inventory/...
+  # ============================================================
+  inventory:
+    build:
+      context: ./inventory_service
+      dockerfile: Dockerfile
+    container_name: kachipapa_inventory
+    environment:
+      DATABASE_URL: postgresql://postgres:6369@postgres:5432/zinthumall_db
+      PORT:         3001
+    ports:
+      # 3001 on your machine → 3001 inside container
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kachipapa_network
+    restart: unless-stopped
+    volumes:
+      - ./inventory_service/.env:/app/.env
+
+# ============================================================
+# SHARED NETWORK
+# Containers find each other by service name, not IP address
+# e.g. admin-backend connects to "postgres" not "127.0.0.1"
+# ============================================================
+networks:
+  kachipapa_network:
+    driver: bridge
+
+# ============================================================
+# VOLUMES — persists database data between restarts
+# ============================================================
+volumes:
+  postgres_data:
