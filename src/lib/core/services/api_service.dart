@@ -1,23 +1,9 @@
-// =============================================================
-// FILE: lib/core/services/api_service.dart
-//
-// UPDATED: Added proper image upload support using
-// http.MultipartRequest which is what the NestJS backend
-// expects (FileInterceptor('image', { storage: memoryStorage() }))
-//
-// HOW IMAGE UPLOAD WORKS:
-//   1. Admin picks image → image_picker returns XFile
-//   2. We read the bytes from XFile
-//   3. We send as multipart/form-data with field name 'image'
-//   4. NestJS receives it, uploads to Cloudinary
-//   5. Returns product with imageUrl from Cloudinary
-// =============================================================
-
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mime/mime.dart';
+import 'package:http_parser/http_parser.dart'; // Added for MediaType
 import '../constants/app_constants.dart';
 import '../../features/home/data/models/product_model.dart';
 
@@ -69,7 +55,7 @@ class ApiService {
   }
 
   // ==========================================================
-  // AUTH ENDPOINTS
+  // ADMIN AUTH ENDPOINTS
   // ==========================================================
 
   Future<Map<String, dynamic>> registerAdmin({
@@ -142,7 +128,6 @@ class ApiService {
     return ProductModel.fromJson(data as Map<String, dynamic>);
   }
 
-  /// GET /api/products/:id — returns raw Map for product detail screen
   Future<Map<String, dynamic>> getProductById(String id) async {
     final response = await _client.get(
       Uri.parse('${AppConstants.adminBaseUrl}/products/$id'),
@@ -153,16 +138,6 @@ class ApiService {
 
   // ----------------------------------------------------------
   // CREATE PRODUCT WITH IMAGE UPLOAD
-  //
-  // The backend uses:
-  //   @UseInterceptors(FileInterceptor('image', { storage: memoryStorage() }))
-  //
-  // So we send multipart/form-data where:
-  //   - field 'image'  = the image file bytes
-  //   - other fields   = product data as form fields
-  //
-  // imageBytes   = the raw bytes of the image file
-  // imageFileName = e.g. "shirt.jpg"
   // ----------------------------------------------------------
   Future<ProductModel> createProduct({
     required String name,
@@ -172,20 +147,15 @@ class ApiService {
     int?    discount,
     String? description,
     List<String>? sizes,
-    // Image fields — null if admin didn't pick an image
     Uint8List? imageBytes,
     String?    imageFileName,
   }) async {
     final token = await getToken();
     final url   = Uri.parse('${AppConstants.adminBaseUrl}/products');
 
-    // MultipartRequest handles multipart/form-data
     final request = http.MultipartRequest('POST', url);
-
-    // Add JWT token header
     request.headers['Authorization'] = 'Bearer $token';
 
-    // Add text fields
     request.fields['name']     = name;
     request.fields['category'] = category;
     request.fields['price']    = price.toString();
@@ -194,25 +164,21 @@ class ApiService {
     if (discount != null)    request.fields['discount']    = discount.toString();
     if (description != null) request.fields['description'] = description;
     if (sizes != null && sizes.isNotEmpty) {
-      // Backend expects sizes as array — send each one separately
-      // NestJS @IsArray() decorator handles this
       for (int i = 0; i < sizes.length; i++) {
         request.fields['sizes[$i]'] = sizes[i];
       }
     }
 
-    // Add image file if provided
     if (imageBytes != null && imageFileName != null) {
-      // Detect MIME type from filename (e.g. "image/jpeg", "image/png")
       final mimeType = lookupMimeType(imageFileName) ?? 'image/jpeg';
       final mimeParts = mimeType.split('/');
 
       request.files.add(
         http.MultipartFile.fromBytes(
-          'image',           // ← must match FileInterceptor('image') in NestJS
+          'image',
           imageBytes,
           filename: imageFileName,
-          contentType: http.MediaType(mimeParts[0], mimeParts[1]),
+          contentType: MediaType(mimeParts[0], mimeParts[1]),
         ),
       );
     }
@@ -223,9 +189,6 @@ class ApiService {
     return ProductModel.fromJson(data as Map<String, dynamic>);
   }
 
-  // ----------------------------------------------------------
-  // UPDATE PRODUCT WITH OPTIONAL NEW IMAGE
-  // ----------------------------------------------------------
   Future<ProductModel> updateProduct(
     int id,
     Map<String, dynamic> fields, {
@@ -250,7 +213,7 @@ class ApiService {
           'image',
           imageBytes,
           filename: imageFileName,
-          contentType: http.MediaType(mimeParts[0], mimeParts[1]),
+          contentType: MediaType(mimeParts[0], mimeParts[1]),
         ),
       );
     }
@@ -261,9 +224,6 @@ class ApiService {
     return ProductModel.fromJson(data as Map<String, dynamic>);
   }
 
-  // ----------------------------------------------------------
-  // DELETE PRODUCT
-  // ----------------------------------------------------------
   Future<void> deleteProduct(int id) async {
     final headers = await _authHeaders;
     final url     = Uri.parse('${AppConstants.adminBaseUrl}/products/$id');
@@ -283,8 +243,7 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getLowStock() async {
-    final url = Uri.parse(
-        '${AppConstants.inventoryBaseUrl}/inventory/low-stock');
+    final url = Uri.parse('${AppConstants.inventoryBaseUrl}/inventory/low-stock');
     final response = await _client.get(url, headers: _baseHeaders);
     final data     = _handleResponse(response);
     return List<Map<String, dynamic>>.from(data as List);
@@ -295,8 +254,7 @@ class ApiService {
     required int quantity,
     String? notes,
   }) async {
-    final url = Uri.parse(
-        '${AppConstants.inventoryBaseUrl}/inventory/add-stock');
+    final url = Uri.parse('${AppConstants.inventoryBaseUrl}/inventory/add-stock');
     final response = await _client.post(
       url,
       headers: _baseHeaders,
@@ -314,8 +272,7 @@ class ApiService {
     required int quantity,
     String? notes,
   }) async {
-    final url = Uri.parse(
-        '${AppConstants.inventoryBaseUrl}/inventory/reduce-stock');
+    final url = Uri.parse('${AppConstants.inventoryBaseUrl}/inventory/reduce-stock');
     final response = await _client.post(
       url,
       headers: _baseHeaders,
@@ -326,6 +283,134 @@ class ApiService {
       }),
     );
     return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  // ==========================================================
+  // CUSTOMER AUTH ENDPOINTS
+  // ==========================================================
+
+  Future<Map<String, dynamic>> loginCustomer({
+    required String email,
+    required String password,
+  }) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/login');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> registerCustomer({
+    required String name,
+    required String email,
+    required String password,
+    required String phone,
+  }) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/register');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({
+        'name':     name,
+        'email':    email,
+        'password': password,
+        'phone':    phone,
+      }),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getCustomerProfile(String token) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/profile');
+    final response = await _client.get(
+      url,
+      headers: {
+        ..._baseHeaders,
+        'Authorization': 'Bearer $token',
+      },
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  // ==========================================================
+  // ORDERS ENDPOINTS
+  // ==========================================================
+
+  Future<List<Map<String, dynamic>>> getOrders() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/orders-view');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  Future<Map<String, dynamic>> placeOrder({
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    required String deliveryAddress,
+    required String deliveryCity,
+    required double totalAmount,
+    required String paymentMethod,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/orders-view');
+    final response = await _client.post(
+      url,
+      headers: _baseHeaders,
+      body: jsonEncode({
+        'customerName':    customerName,
+        'customerEmail':   customerEmail,
+        'customerPhone':   customerPhone,
+        'deliveryAddress': deliveryAddress,
+        'deliveryCity':    deliveryCity,
+        'totalAmount':     totalAmount,
+        'paymentMethod':   paymentMethod,
+        'items':           items,
+      }),
+    );
+    return _handleResponse(response) as Map<String, dynamic>;
+  }
+
+  // ==========================================================
+  // NOTIFICATIONS ENDPOINTS
+  // ==========================================================
+
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/admin/notifications');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  Future<void> markNotificationRead(int id) async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/admin/notifications/$id/read');
+    await _client.patch(url, headers: headers);
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/admin/notifications/read-all');
+    await _client.patch(url, headers: headers);
+  }
+
+  // ==========================================================
+  // REVIEWS ENDPOINTS
+  // ==========================================================
+
+  Future<List<Map<String, dynamic>>> getReviews() async {
+    final headers = await _authHeaders;
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/admin/reviews');
+    final response = await _client.get(url, headers: headers);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
+  }
+
+  Future<List<Map<String, dynamic>>> getProductReviews(int productId) async {
+    final url = Uri.parse('${AppConstants.adminBaseUrl}/admin/reviews/product/$productId');
+    final response = await _client.get(url, headers: _baseHeaders);
+    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
   }
 
   // ==========================================================
@@ -357,139 +442,4 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
-}
-
-  // ==========================================================
-  // CUSTOMER AUTH ENDPOINTS
-  // ==========================================================
-
-  /// POST /api/customer/auth/login
-  Future<Map<String, dynamic>> loginCustomer({
-    required String email,
-    required String password,
-  }) async {
-    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/login');
-    final response = await _client.post(
-      url,
-      headers: _baseHeaders,
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    return _handleResponse(response) as Map<String, dynamic>;
-  }
-
-  /// POST /api/customer/auth/register
-  Future<Map<String, dynamic>> registerCustomer({
-    required String name,
-    required String email,
-    required String password,
-    required String phone,
-  }) async {
-    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/auth/register');
-    final response = await _client.post(
-      url,
-      headers: _baseHeaders,
-      body: jsonEncode({
-        'name':     name,
-        'email':    email,
-        'password': password,
-        'phone':    phone,
-      }),
-    );
-    return _handleResponse(response) as Map<String, dynamic>;
-  }
-
-  /// GET /api/customer/profile (needs customer JWT token)
-  Future<Map<String, dynamic>> getCustomerProfile(String token) async {
-    final url = Uri.parse('${AppConstants.adminBaseUrl}/customer/profile');
-    final response = await _client.get(
-      url,
-      headers: {
-        ..._baseHeaders,
-        'Authorization': 'Bearer $token',
-      },
-    );
-    return _handleResponse(response) as Map<String, dynamic>;
-  }
-
-  // ==========================================================
-  // ORDERS ENDPOINTS (Friend 1 — Admin-backend)
-  // ==========================================================
-
-  /// GET /api/orders-view — all orders (admin only)
-  Future<List<Map<String, dynamic>>> getOrders() async {
-    final headers = await _authHeaders;
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/orders-view');
-    final response = await _client.get(url, headers: headers);
-    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
-  }
-
-  /// POST /api/orders-view — place a new order
-  Future<Map<String, dynamic>> placeOrder({
-    required String customerName,
-    required String customerEmail,
-    required String customerPhone,
-    required String deliveryAddress,
-    required String deliveryCity,
-    required double totalAmount,
-    required String paymentMethod,
-    required List<Map<String, dynamic>> items,
-  }) async {
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/orders-view');
-    final response = await _client.post(
-      url,
-      headers: _baseHeaders,
-      body: jsonEncode({
-        'customerName':    customerName,
-        'customerEmail':   customerEmail,
-        'customerPhone':   customerPhone,
-        'deliveryAddress': deliveryAddress,
-        'deliveryCity':    deliveryCity,
-        'totalAmount':     totalAmount,
-        'paymentMethod':   paymentMethod,
-        'items':           items,
-      }),
-    );
-    return _handleResponse(response) as Map<String, dynamic>;
-  }
-
-  // ==========================================================
-  // NOTIFICATIONS ENDPOINTS
-  // ==========================================================
-
-  Future<List<Map<String, dynamic>>> getNotifications() async {
-    final headers = await _authHeaders;
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications');
-    final response = await _client.get(url, headers: headers);
-    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
-  }
-
-  Future<void> markNotificationRead(int id) async {
-    final headers = await _authHeaders;
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications/\$id/read');
-    await _client.patch(url, headers: headers);
-  }
-
-  Future<void> markAllNotificationsRead() async {
-    final headers = await _authHeaders;
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/notifications/read-all');
-    await _client.patch(url, headers: headers);
-  }
-
-  // ==========================================================
-  // REVIEWS ENDPOINTS
-  // ==========================================================
-
-  Future<List<Map<String, dynamic>>> getReviews() async {
-    final headers = await _authHeaders;
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/reviews');
-    final response = await _client.get(url, headers: headers);
-    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
-  }
-
-  Future<List<Map<String, dynamic>>> getProductReviews(int productId) async {
-    final url = Uri.parse('\${AppConstants.adminBaseUrl}/admin/reviews/product/\$productId');
-    final response = await _client.get(url, headers: _baseHeaders);
-    return List<Map<String, dynamic>>.from(_handleResponse(response) as List);
-  }
-
 }

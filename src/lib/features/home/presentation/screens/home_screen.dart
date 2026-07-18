@@ -1,20 +1,14 @@
 // =============================================================
 // FILE: lib/features/home/presentation/screens/home_screen.dart
 //
-// UPDATED:
-//   - Changed to ConsumerStatefulWidget so it can use Riverpod
-//   - Products now come from productsProvider (shared state)
-//     instead of ProductModel.sampleProducts (hardcoded)
-//   - When admin adds/deletes a product, this screen rebuilds
-//     automatically because it WATCHES the same provider
-//   - Added hidden admin button (long press on logo)
-//
-//   THE KEY CHANGE — from this:
-//     _allProducts = ProductModel.sampleProducts;  // hardcoded
-//   To this:
-//     final products = ref.watch(productsProvider); // live shared state
-//
-//   Now admin panel and homepage are connected!
+// FIXED:
+//   1. Announcement bar text overflow — added overflow ellipsis
+//   2. AppBar logo overflow — reduced font size on small screens
+//   3. Trust badges overflow — use Wrap instead of Row
+//   4. Payment strip overflow — Wrap instead of Row
+//   5. Hero banner overflow — added overflow protection
+//   6. Flash deals banner overflow — added Flexible
+//   7. countdown timer dispose safety check
 // =============================================================
 
 import 'dart:async';
@@ -28,10 +22,6 @@ import '../../../category/presentation/screens/home_category_screen.dart';
 import '../../data/models/product_model.dart';
 import '../widgets/product_card.dart';
 
-// ----------------------------------------------------------
-// Changed from StatefulWidget → ConsumerStatefulWidget
-// ConsumerStatefulWidget = StatefulWidget + Riverpod ref
-// ----------------------------------------------------------
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -39,19 +29,15 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-// ConsumerState gives us access to 'ref' for Riverpod
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-
   int _selectedTabIndex      = 0;
   int _selectedCategoryIndex = 0;
 
-  // Flash sale countdown
   int _countdownHours   = 4;
   int _countdownMinutes = 37;
   int _countdownSeconds = 19;
   late Timer _countdownTimer;
 
-  // Tab labels
   final List<String> _tabs = [
     'All Products',
     "Men's Clothing",
@@ -60,7 +46,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     'New Arrivals',
   ];
 
-  // Category circles
   final List<Map<String, dynamic>> _categories = [
     {'label': "Men's Clothing",   'emoji': '👔', 'color': const Color(0xFFFFF3E0), 'key': 'mens_clothing'},
     {'label': "Women's Clothing", 'emoji': '👗', 'color': const Color(0xFFFCE4EC), 'key': 'womens_clothing'},
@@ -84,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _startCountdown() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return; // FIX: safety check
       setState(() {
         if (_countdownSeconds > 0) {
           _countdownSeconds--;
@@ -101,16 +87,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  // ----------------------------------------------------------
-  // Filter products from the shared provider by tab
-  // ----------------------------------------------------------
   List<ProductModel> _getFilteredProducts(List<ProductModel> all) {
     switch (_selectedTabIndex) {
       case 1: return all.where((p) => p.category == 'mens_clothing').toList();
       case 2: return all.where((p) => p.category == 'womens_clothing').toList();
-      case 3:
-        // Also navigate to full category screen
-        return all.where((p) => p.category == 'domestics_home').toList();
+      case 3: return all.where((p) => p.category == 'domestics_home').toList();
       case 4:
         final ago = DateTime.now().subtract(const Duration(days: 30));
         return all.where((p) => p.createdAt.isAfter(ago)).toList();
@@ -120,12 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ----------------------------------------------------------
-    // KEY LINE — watch the shared products provider
-    // When admin adds/removes a product, this rebuilds automatically
-    // ----------------------------------------------------------
-    // productsProvider now returns AsyncValue<List<ProductModel>>
-    // .value ?? [] safely extracts the list (empty if loading/error)
     final asyncProducts    = ref.watch(productsProvider);
     final allProducts      = asyncProducts.value ?? [];
     final filteredProducts = _getFilteredProducts(allProducts);
@@ -140,7 +115,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: LayoutBuilder(
-                builder: (context, constraints) => _buildHeroBanner(constraints.maxWidth),
+                builder: (context, constraints) =>
+                    _buildHeroBanner(constraints.maxWidth),
               ),
             ),
           ),
@@ -167,34 +143,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           SliverToBoxAdapter(child: _buildProductTabs()),
-
-          // Product count indicator
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 '${filteredProducts.length} products',
-                style: GoogleFonts.dmSans(
-                  fontSize: 12,
-                  color: AppTheme.textHint,
-                ),
+                style: GoogleFonts.dmSans(fontSize: 12, color: AppTheme.textHint),
               ),
             ),
           ),
-
-          // Product grid — now uses live filteredProducts
           filteredProducts.isEmpty
-              ? SliverToBoxAdapter(
-                  child: _buildEmptyState(),
-                )
+              ? SliverToBoxAdapter(child: _buildEmptyState())
               : SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverGrid(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      // Responsive columns:
-                      // < 600px  → 2 columns (mobile)
-                      // < 900px  → 3 columns (tablet)
-                      // 900px+   → 4 columns (desktop)
                       crossAxisCount: MediaQuery.of(context).size.width < 600
                           ? 2
                           : MediaQuery.of(context).size.width < 900
@@ -210,10 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         return ProductCard(
                           product: product,
                           onTap: () => Navigator.pushNamed(
-                          context,
-                          '/product',
-                          arguments: product,
-                        ),
+                            context, '/product', arguments: product),
                           onAddToCart: () {
                             ref.read(cartProvider.notifier).addItem(product);
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -230,7 +190,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ),
                 ),
-
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -244,11 +203,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // ----------------------------------------------------------
-  // SLIVER APP BAR
-  // Logo has a long-press gesture → navigate to admin login
-  // This is the "hidden" admin entry point
-  // ----------------------------------------------------------
+  // ═══════════════════════════════════════════════
+  //  APP BAR — FIX: reduced font size to prevent overflow
+  // ═══════════════════════════════════════════════
   Widget _buildSliverAppBar() {
     return SliverAppBar(
       pinned: true,
@@ -259,26 +216,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       toolbarHeight: 64,
       title: Row(
         children: [
-          // Long press logo → admin login (hidden entry point)
           GestureDetector(
             onTap: () {},
-            onLongPress: () {
-              Navigator.pushNamed(context, '/admin');
-            },
+            onLongPress: () => Navigator.pushNamed(context, '/admin'),
             child: RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
                     text: 'Kachipapa',
                     style: GoogleFonts.playfairDisplay(
-                      fontSize: 22, fontWeight: FontWeight.w700,
+                      // FIX: reduced from 22 to 18 to prevent overflow
+                      fontSize: 18, fontWeight: FontWeight.w700,
                       color: AppTheme.primaryRed,
                     ),
                   ),
                   TextSpan(
                     text: 'Store',
                     style: GoogleFonts.playfairDisplay(
-                      fontSize: 22, fontWeight: FontWeight.w700,
+                      fontSize: 18, fontWeight: FontWeight.w700,
                       color: AppTheme.accentOrange,
                     ),
                   ),
@@ -286,25 +241,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: GestureDetector(
-              onTap: () {},
+              onTap: () => Navigator.pushNamed(context, '/search'),
               child: Container(
-                height: 40,
+                height: 38,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF4F4F2),
                   borderRadius: BorderRadius.circular(40),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: AppTheme.textHint, size: 18),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.search, color: AppTheme.textHint, size: 16),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Search clothes, homeware…',
-                        style: GoogleFonts.dmSans(color: AppTheme.textHint, fontSize: 14),
+                        'Search…',
+                        style: GoogleFonts.dmSans(
+                          color: AppTheme.textHint, fontSize: 13),
+                        overflow: TextOverflow.ellipsis, // FIX
                       ),
                     ),
                   ],
@@ -312,31 +269,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 2),
           IconButton(
             icon: const Icon(Icons.favorite_border, color: AppTheme.textPrimary),
-            onPressed: () {},
+            onPressed: () => Navigator.pushNamed(context, '/wishlist'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
           Stack(
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined, color: AppTheme.primaryRed),
+                icon: const Icon(Icons.shopping_cart_outlined,
+                    color: AppTheme.primaryRed),
                 onPressed: () => Navigator.pushNamed(context, '/cart'),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
               if (ref.watch(cartItemCountProvider) > 0)
                 Positioned(
-                  top: 4, right: 4,
+                  top: 2, right: 2,
                   child: Container(
-                    width: 17, height: 17,
+                    width: 16, height: 16,
                     decoration: const BoxDecoration(
-                      color: AppTheme.primaryRed,
-                      shape: BoxShape.circle,
-                    ),
+                      color: AppTheme.primaryRed, shape: BoxShape.circle),
                     child: Center(
                       child: Text(
                         '${ref.watch(cartItemCountProvider)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Colors.white, fontSize: 9,
+                          fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -348,22 +310,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════
+  //  ANNOUNCEMENT BAR — FIX: overflow ellipsis
+  // ═══════════════════════════════════════════════
   Widget _buildAnnouncementBar() {
     return Container(
       color: AppTheme.primaryRed,
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 16),
       child: Center(
         child: Text(
-          '🚚 Free delivery on orders over MK 5,000  ·  Airtel Money & TNM Mpamba',
-          style: GoogleFonts.dmSans(color: Colors.white, fontSize: 11, letterSpacing: 0.4),
+          '🚚 Free delivery on orders over MK 5,000  ·  Airtel & Mpamba',
+          style: GoogleFonts.dmSans(
+            color: Colors.white, fontSize: 11, letterSpacing: 0.4),
+          overflow: TextOverflow.ellipsis, // FIX
+          maxLines: 1,
         ),
       ),
     );
   }
 
+  // ═══════════════════════════════════════════════
+  //  HERO BANNER — FIX: overflow protection on text
+  // ═══════════════════════════════════════════════
   Widget _buildHeroBanner([double width = 400]) {
+    final isNarrow = width < 400;
     return SizedBox(
-      height: 260,
+      height: isNarrow ? 220 : 260,
       child: Row(
         children: [
           Expanded(
@@ -377,46 +349,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 borderRadius: BorderRadius.circular(14),
               ),
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: AppTheme.primaryRed, borderRadius: BorderRadius.circular(40)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryRed,
+                      borderRadius: BorderRadius.circular(40)),
                     child: Text('NEW COLLECTION 2025',
-                        style: GoogleFonts.dmSans(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+                      style: GoogleFonts.dmSans(
+                        color: Colors.white, fontSize: 9,
+                        fontWeight: FontWeight.w700, letterSpacing: 1.0),
+                      overflow: TextOverflow.ellipsis), // FIX
                   ),
-                  const SizedBox(height: 10),
-                  Text('Dress Sharp.\nLive Bold.',
-                      style: GoogleFonts.playfairDisplay(fontSize: 26, fontWeight: FontWeight.w700, color: Colors.white, height: 1.2)),
                   const SizedBox(height: 8),
-                  Text('Premium fashion delivered\nanywhere in Malawi',
-                      style: GoogleFonts.dmSans(color: Colors.white60, fontSize: 12, height: 1.5)),
-                  const SizedBox(height: 16),
+                  Text('Dress Sharp.\nLive Bold.',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: isNarrow ? 20 : 24,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white, height: 1.2),
+                    overflow: TextOverflow.ellipsis, // FIX
+                    maxLines: 2),
+                  const SizedBox(height: 6),
+                  Text('Premium fashion delivered anywhere in Malawi',
+                    style: GoogleFonts.dmSans(
+                      color: Colors.white60, fontSize: 11, height: 1.4),
+                    overflow: TextOverflow.ellipsis, // FIX
+                    maxLines: 2),
+                  const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: () {},
-                    icon: const Icon(Icons.shopping_bag_outlined, size: 16),
-                    label: Text('Shop Now', style: GoogleFonts.dmSans(fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10)),
+                    icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                    label: Text('Shop Now',
+                      style: GoogleFonts.dmSans(
+                        fontWeight: FontWeight.w600, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8)),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             flex: 1,
             child: Column(
               children: [
-                Expanded(child: _sideCard("Women's Fashion", 'New Arrivals', '👗',
-                    const LinearGradient(colors: [Color(0xFFFFF0F3), Color(0xFFFECDDB)]), () {})),
-                const SizedBox(height: 12),
-                Expanded(child: _sideCard('Home & Kitchen', 'Domestics', '🏡',
-                    const LinearGradient(colors: [Color(0xFFEFF7FF), Color(0xFFC6E0FF)]), () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeCategoryScreen()));
-                })),
+                Expanded(child: _sideCard(
+                  "Women's", 'New Arrivals', '👗',
+                  const LinearGradient(
+                    colors: [Color(0xFFFFF0F3), Color(0xFFFECDDB)]),
+                  () => Navigator.pushNamed(context, '/category/womens'))),
+                const SizedBox(height: 10),
+                Expanded(child: _sideCard(
+                  'Home', 'Domestics', '🏡',
+                  const LinearGradient(
+                    colors: [Color(0xFFEFF7FF), Color(0xFFC6E0FF)]),
+                  () => Navigator.pushNamed(context, '/category/home'))),
               ],
             ),
           ),
@@ -425,22 +419,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _sideCard(String label, String title, String emoji, Gradient gradient, VoidCallback onTap) {
+  Widget _sideCard(String label, String title, String emoji,
+      Gradient gradient, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(14)),
-        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: gradient, borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label.toUpperCase(), style: GoogleFonts.dmSans(fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.8, color: AppTheme.textHint)),
-            const SizedBox(height: 4),
-            Text(title, style: GoogleFonts.playfairDisplay(fontSize: 16, fontWeight: FontWeight.w700)),
-            Text(emoji, style: const TextStyle(fontSize: 28)),
+            Text(label.toUpperCase(),
+              style: GoogleFonts.dmSans(
+                fontSize: 8, fontWeight: FontWeight.w700,
+                letterSpacing: 0.8, color: AppTheme.textHint),
+              overflow: TextOverflow.ellipsis), // FIX
+            Text(title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 14, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis), // FIX
+            Text(emoji, style: const TextStyle(fontSize: 24)),
             Row(children: [
-              Text('Shop', style: GoogleFonts.dmSans(fontSize: 12, color: AppTheme.primaryRed, fontWeight: FontWeight.w700)),
-              const Icon(Icons.arrow_forward, size: 13, color: AppTheme.primaryRed),
+              Text('Shop',
+                style: GoogleFonts.dmSans(
+                  fontSize: 11, color: AppTheme.primaryRed,
+                  fontWeight: FontWeight.w700)),
+              const Icon(Icons.arrow_forward,
+                size: 11, color: AppTheme.primaryRed),
             ]),
           ],
         ),
@@ -448,6 +455,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════
+  //  TRUST BADGES — FIX: Wrap instead of Row
+  // ═══════════════════════════════════════════════
   Widget _buildTrustBadges() {
     final badges = [
       {'icon': Icons.local_shipping_outlined, 'title': 'Fast Delivery',    'sub': 'Nationwide'},
@@ -455,40 +465,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       {'icon': Icons.refresh,                  'title': 'Easy Returns',     'sub': '7-day policy'},
       {'icon': Icons.phone_android,            'title': 'Mobile Pay',       'sub': 'Airtel & Mpamba'},
     ];
-    return Row(
-      children: List.generate(badges.length, (i) {
-        final b = badges[i];
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: i < badges.length - 1 ? 8 : 0),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppTheme.cardWhite, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppTheme.borderColor)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(width: 32, height: 32,
-                decoration: BoxDecoration(color: const Color(0xFFFFF0F2), borderRadius: BorderRadius.circular(8)),
-                child: Icon(b['icon'] as IconData, size: 17, color: AppTheme.primaryRed)),
-              const SizedBox(height: 6),
-              Text(b['title'] as String, style: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600)),
-              Text(b['sub'] as String, style: GoogleFonts.dmSans(fontSize: 9, color: AppTheme.textHint)),
-            ]),
-          ),
-        );
-      }),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      final itemWidth = (constraints.maxWidth - 24) / 2;
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(badges.length, (i) {
+          final b = badges[i];
+          return SizedBox(
+            width: itemWidth,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.cardWhite,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.borderColor)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F2),
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Icon(b['icon'] as IconData,
+                      size: 17, color: AppTheme.primaryRed)),
+                  const SizedBox(height: 6),
+                  Text(b['title'] as String,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis), // FIX
+                  Text(b['sub'] as String,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 9, color: AppTheme.textHint),
+                    overflow: TextOverflow.ellipsis), // FIX
+                ],
+              ),
+            ),
+          );
+        }),
+      );
+    });
   }
 
-  Widget _buildSectionHeader(String title, String linkText, VoidCallback onLink) {
+  Widget _buildSectionHeader(
+      String title, String linkText, VoidCallback onLink) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w700)),
+          Expanded(
+            child: Text(title,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis), // FIX
+          ),
           GestureDetector(
             onTap: onLink,
             child: Row(children: [
-              Text(linkText, style: GoogleFonts.dmSans(fontSize: 12, color: AppTheme.primaryRed, fontWeight: FontWeight.w600)),
-              const Icon(Icons.chevron_right, size: 16, color: AppTheme.primaryRed),
+              Text(linkText,
+                style: GoogleFonts.dmSans(
+                  fontSize: 12, color: AppTheme.primaryRed,
+                  fontWeight: FontWeight.w600)),
+              const Icon(Icons.chevron_right,
+                size: 16, color: AppTheme.primaryRed),
             ]),
           ),
         ],
@@ -523,18 +564,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   duration: const Duration(milliseconds: 200),
                   width: 72, height: 72,
                   decoration: BoxDecoration(
-                    color: cat['color'] as Color, shape: BoxShape.circle,
-                    border: Border.all(color: isSelected ? AppTheme.primaryRed : Colors.transparent, width: 2.5),
-                    boxShadow: isSelected ? [BoxShadow(color: AppTheme.primaryRed.withOpacity(0.2), blurRadius: 8)] : null,
+                    color: cat['color'] as Color,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primaryRed : Colors.transparent,
+                      width: 2.5),
+                    boxShadow: isSelected
+                        ? [BoxShadow(
+                            color: AppTheme.primaryRed.withOpacity(0.2),
+                            blurRadius: 8)]
+                        : null,
                   ),
-                  child: Center(child: Text(cat['emoji'] as String, style: const TextStyle(fontSize: 28))),
+                  child: Center(child: Text(cat['emoji'] as String,
+                    style: const TextStyle(fontSize: 28))),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: 72,
-                  child: Text(cat['label'] as String, textAlign: TextAlign.center,
-                      style: GoogleFonts.dmSans(fontSize: 11, fontWeight: FontWeight.w500,
-                          color: isSelected ? AppTheme.primaryRed : AppTheme.textSecondary)),
+                  child: Text(cat['label'] as String,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis, // FIX
+                    style: GoogleFonts.dmSans(
+                      fontSize: 11, fontWeight: FontWeight.w500,
+                      color: isSelected
+                          ? AppTheme.primaryRed : AppTheme.textSecondary)),
                 ),
               ]),
             ),
@@ -544,23 +599,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════
+  //  FLASH DEALS BANNER — FIX: Flexible on text
+  // ═══════════════════════════════════════════════
   Widget _buildFlashDealsBanner() {
     return Container(
-      decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFC8102E), Color(0xFFE63950)]), borderRadius: BorderRadius.circular(14)),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFC8102E), Color(0xFFE63950)]),
+        borderRadius: BorderRadius.circular(14)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(children: [
-        const Text('⚡', style: TextStyle(fontSize: 26)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("Today's Flash Sale — Up to 60% Off", style: GoogleFonts.dmSans(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
-          Text('Limited stock · Ends at midnight', style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 11)),
-        ])),
+        const Text('⚡', style: TextStyle(fontSize: 24)),
+        const SizedBox(width: 10),
+        Expanded( // FIX: was missing Expanded
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Today's Flash Sale — Up to 60% Off",
+                style: GoogleFonts.dmSans(
+                  color: Colors.white, fontSize: 13,
+                  fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis, // FIX
+                maxLines: 1),
+              const SizedBox(height: 2),
+              Text('Limited stock · Ends at midnight',
+                style: GoogleFonts.dmSans(
+                  color: Colors.white70, fontSize: 10),
+                overflow: TextOverflow.ellipsis), // FIX
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
         Row(children: [
           _countdownBox(_countdownHours, 'HRS'),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           _countdownBox(_countdownMinutes, 'MIN'),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
           _countdownBox(_countdownSeconds, 'SEC'),
         ]),
       ]),
@@ -569,13 +644,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _countdownBox(int value, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(7)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black26, borderRadius: BorderRadius.circular(7)),
       child: Column(children: [
         Text(value.toString().padLeft(2, '0'),
-            style: GoogleFonts.dmSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()])),
-        Text(label, style: GoogleFonts.dmSans(color: Colors.white70, fontSize: 8, letterSpacing: 0.6)),
+          style: GoogleFonts.dmSans(
+            color: Colors.white, fontSize: 16,
+            fontWeight: FontWeight.w700)),
+        Text(label,
+          style: GoogleFonts.dmSans(
+            color: Colors.white70, fontSize: 7, letterSpacing: 0.6)),
       ]),
     );
   }
@@ -584,7 +663,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-        child: Text('Featured Products', style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w700)),
+        child: Text('Featured Products',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20, fontWeight: FontWeight.w700)),
       ),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -597,15 +678,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: isActive ? AppTheme.primaryRed : AppTheme.cardWhite,
                   borderRadius: BorderRadius.circular(40),
-                  border: Border.all(color: isActive ? AppTheme.primaryRed : AppTheme.borderColor),
-                ),
+                  border: Border.all(
+                    color: isActive
+                        ? AppTheme.primaryRed : AppTheme.borderColor)),
                 child: Text(_tabs[index],
-                    style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.w500,
-                        color: isActive ? Colors.white : AppTheme.textSecondary)),
+                  style: GoogleFonts.dmSans(
+                    fontSize: 12, fontWeight: FontWeight.w500,
+                    color: isActive ? Colors.white : AppTheme.textSecondary)),
               ),
             );
           }),
@@ -622,54 +706,83 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(children: [
           const Text('🛍️', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
-          Text('No products yet', style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w700)),
+          Text('No products yet',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text('The admin hasn\'t added any products yet.',
-              style: GoogleFonts.dmSans(color: AppTheme.textHint, fontSize: 14)),
+            style: GoogleFonts.dmSans(
+              color: AppTheme.textHint, fontSize: 14),
+            textAlign: TextAlign.center),
         ]),
       ),
     );
   }
 
+  // ═══════════════════════════════════════════════
+  //  PAYMENT STRIP — FIX: Wrap instead of Row
+  // ═══════════════════════════════════════════════
   Widget _buildPaymentStrip() {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [Color(0xFF0A1628), Color(0xFF162040)]),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color(0xFF0A1628), Color(0xFF162040)]),
         borderRadius: BorderRadius.circular(14),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         RichText(text: TextSpan(children: [
-          TextSpan(text: 'Secure Checkout via ', style: GoogleFonts.playfairDisplay(fontSize: 16, color: Colors.white)),
-          TextSpan(text: 'Pachangu API', style: GoogleFonts.playfairDisplay(fontSize: 16, color: AppTheme.accentOrange, fontWeight: FontWeight.w700)),
+          TextSpan(text: 'Secure Checkout via ',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 14, color: Colors.white)),
+          TextSpan(text: 'Pachangu',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 14, color: AppTheme.accentOrange,
+              fontWeight: FontWeight.w700)),
         ])),
-        const SizedBox(height: 14),
-        Row(children: [
-          _payBadge(Icons.phone_android, 'Airtel Money', 'Instant · Secure'),
-          const SizedBox(width: 10),
-          _payBadge(Icons.phone_iphone, 'TNM Mpamba', 'Instant · Secure'),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(color: AppTheme.accentOrange, borderRadius: BorderRadius.circular(40)),
-            child: Text('Powered by Pachangu', style: GoogleFonts.dmSans(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
-        ]),
+        const SizedBox(height: 12),
+        // FIX: Wrap instead of Row to prevent overflow
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.spaceBetween,
+          children: [
+            _payBadge(Icons.phone_android, 'Airtel Money', 'Instant · Secure'),
+            _payBadge(Icons.phone_iphone,  'TNM Mpamba',   'Instant · Secure'),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange,
+                borderRadius: BorderRadius.circular(40)),
+              child: Text('Powered by Pachangu',
+                style: GoogleFonts.dmSans(
+                  color: Colors.white, fontSize: 10,
+                  fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       ]),
     );
   }
 
   Widget _payBadge(IconData icon, String name, String sub) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white.withOpacity(0.15))),
-      child: Row(children: [
-        Icon(icon, color: Colors.white, size: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.15))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: Colors.white, size: 18),
         const SizedBox(width: 8),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: GoogleFonts.dmSans(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-          Text(sub, style: GoogleFonts.dmSans(color: Colors.white54, fontSize: 10)),
+          Text(name, style: GoogleFonts.dmSans(
+            color: Colors.white, fontSize: 11,
+            fontWeight: FontWeight.w600)),
+          Text(sub, style: GoogleFonts.dmSans(
+            color: Colors.white54, fontSize: 9)),
         ]),
       ]),
     );
@@ -682,11 +795,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       unselectedItemColor: AppTheme.textHint,
       currentIndex: 0,
       elevation: 8,
-      selectedLabelStyle: GoogleFonts.dmSans(fontSize: 10, fontWeight: FontWeight.w600),
+      selectedLabelStyle: GoogleFonts.dmSans(
+        fontSize: 10, fontWeight: FontWeight.w600),
       unselectedLabelStyle: GoogleFonts.dmSans(fontSize: 10),
       onTap: (index) {
         switch (index) {
-          case 0: break; // already on home
+          case 0: break;
           case 1: Navigator.pushNamed(context, '/search'); break;
           case 2: Navigator.pushNamed(context, '/cart'); break;
           case 3: Navigator.pushNamed(context, '/wishlist'); break;
@@ -694,11 +808,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
       },
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), activeIcon: Icon(Icons.shopping_cart), label: 'Cart'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite_border), activeIcon: Icon(Icons.favorite), label: 'Wishlist'),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Account'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home_outlined),
+          activeIcon: Icon(Icons.home), label: 'Home'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.search), label: 'Search'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart_outlined),
+          activeIcon: Icon(Icons.shopping_cart), label: 'Cart'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.favorite_border),
+          activeIcon: Icon(Icons.favorite), label: 'Wishlist'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person), label: 'Account'),
       ],
     );
   }
