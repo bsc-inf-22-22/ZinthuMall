@@ -1,0 +1,29 @@
+name: kachipapa_store
+description: "Kachipapa Store: Malawi's online marketplace (Flutter web + Android)."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_riverpod: ^2.5.1   # state management
+  http: ^1.2.1               # API client
+  http_parser: ^4.0.2        # content types for image uploads
+  mime: ^1.0.5               # detect image type before upload
+  image_picker: ^1.0.7       # admin picks product photos
+  shared_preferences: ^2.2.3 # keeps users signed in
+  google_fonts: ^6.2.1       # Playfair Display + DM Sans
+  intl: ^0.19.0              # MK currency and date formatting
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
