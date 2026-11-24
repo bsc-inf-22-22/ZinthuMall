@@ -1,50 +1,110 @@
-ZinthuMall - Inventory Management API
+# Kachipapa Store
 
- Tech Stack
-The backend uses NestJS with TypeScript, PostgreSQL database, and Prisma as the ORM. Docker is optional for containerization.
+Malawi's online marketplace for fashion and home essentials. Customers browse, add to cart and check out with Airtel Money, TNM Mpamba or cash on delivery. The store owner manages products, stock and orders from the admin dashboard.
 
-Database Setup
+Design reference: <https://kachipapa-store.netlify.app/>
 
-First, create a PostgreSQL database called "zinthumall_db". Then create a .env file in your project root and add your database connection string with your PostgreSQL username and password.
-After that, run the Prisma migration command to create the product and inventory transaction tables in your database.
- How to Run the Server
-Install all dependencies using npm install. Then start the development server with npm run start:dev. The API will run on http://localhost:3000.
-For production, first run npm run build to compile the code, then npm run start:prod to start the server.
+| Folder | What it is | Tech |
+|---|---|---|
+| [`app/`](app/) | Customer storefront and admin dashboard (web + Android) | Flutter, Riverpod |
+| [`backend/`](backend/) | REST API | NestJS, TypeORM, PostgreSQL |
 
-API Routes
+## Run it locally
 
-There are six endpoints, all starting with /inventory:
-- GET /inventory - Gets all products with their current stock levels
-- GET /inventory/low-stock - Gets products with less than 5 units in stock
-- GET /inventory/out-of-stock - Gets products with zero stock
-- POST /inventory/add-stock - Adds stock to a product (requires productId and quantity in the request body)
-- POST /inventory/reduce-stock - Reduces stock for customer orders or adjustments
-- GET /inventory/history/productId - Shows all stock changes for a specific product
+You need Node 20+, Flutter 3.24+ and either Docker or a local PostgreSQL.
 
-Response Examples
+**1. Start the API**
 
-When you request all inventory using GET /inventory, you'll receive an array of products showing their ID, product ID, name, quantity in stock, and stock status (IN_STOCK, LOW_STOCK, or OUT_OF_STOCK).
-When adding stock with POST /inventory/add-stock, you send a product ID and quantity. The response confirms success and shows the updated product with its new stock quantity.
-When reducing stock with POST /inventory/reduce-stock, you send a product ID and quantity. The response confirms success and shows the updated product. If there isn't enough stock, you'll receive an error message saying "Insufficient stock".
-When checking low stock products, you'll receive a list of products with less than 5 units remaining.
-When viewing transaction history, you'll see the product name, current stock, and a list of all past stock changes including quantities, transaction types (STOCK_IN, STOCK_OUT, or SALE), dates, and any notes.
+```bash
+docker compose up --build          # Postgres + API on http://localhost:3000/api
+```
 
- Docker Setup
+Or without Docker:
 
-If you want to use Docker, first build the image using the docker build command. Then run the container using docker run, making sure to pass your .env file. Alternatively, you can use docker-compose up -d to start both the application and PostgreSQL together.
+```bash
+cd backend
+cp .env.example .env               # set DATABASE_URL to your local Postgres
+npm install
+npm run start:dev
+```
 
-Useful Commands
+Database tables are created automatically on startup (migrations in `backend/src/migrations`).
 
-You can open Prisma Studio (a database GUI) using npx prisma studio to view and edit data visually.
-If you need to reset your database, use npx prisma migrate reset (this will delete all your data).
-If Prisma acts up, regenerate the client with npx prisma generate.
+**2. Start the app**
 
-Testing with cURL
+```bash
+cd app
+flutter pub get
+flutter run -d chrome              # web, talks to http://localhost:3000/api
+flutter run                        # Android emulator, talks to http://10.0.2.2:3000/api
+```
 
-You can test the API using cURL commands. For example, GET requests can be tested by simply visiting the URL in your browser or using curl. For POST requests, you'll need to send JSON data with the content-type header set to application/json.
+**3. Create the store admin**
 
-Troubleshooting
+Long-press the **Kachipapa Store** logo on the home page (or open `/#/admin/register`), then register with the **setup key** (`ADMIN_SETUP_KEY`, `local-setup-key` in docker-compose). Only one admin account can be created.
 
-If you get database connection errors, make sure PostgreSQL is running on your computer. On Windows, you can check with the "pg_isready" command.
-If you get Prisma errors, try regenerating the Prisma client. If port 3000 is already in use, you can either stop the program using that port or change the port number in the main.ts file.
+## Deploy
 
+### Backend → Render
+
+1. Push this repo to GitHub.
+2. Render dashboard → **New → Blueprint** → select the repo. `render.yaml` creates the `kachipapa-api` web service and the `kachipapa-db` database.
+3. In the service's **Environment** tab, set:
+   - `CORS_ORIGINS`: the storefront URL, e.g. `https://kachipapa-store.netlify.app`
+   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (free account at cloudinary.com, used for product photos)
+4. Copy the generated `ADMIN_SETUP_KEY`; you need it once to create the admin account.
+5. Check `https://<your-service>.onrender.com/api/health` returns `{"status":"ok"}`.
+
+> The blueprint uses Render's **free** plans for testing. Before real customers use it, switch the database and web service to paid plans: free databases expire and free services sleep when idle.
+
+Railway works too: create a PostgreSQL service and a service from `backend/` (it has a Dockerfile), then set the same variables. Railway's `DATABASE_URL` needs `DB_SSL=true` if you use the public connection URL.
+
+### Web storefront → Netlify
+
+```bash
+cd app
+flutter build web --release --dart-define=API_BASE_URL=https://<your-service>.onrender.com/api
+```
+
+Then drag `app/build/web` onto Netlify (**Sites → Add new site → Deploy manually**), or deploy with `netlify deploy --prod --dir build/web`. Add the Netlify URL to `CORS_ORIGINS` on the backend.
+
+### Android app
+
+1. Create an upload key once (keep it safe; you can't update the Play Store app without it):
+   ```bash
+   keytool -genkey -v -keystore ~/kachipapa-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+   ```
+2. Create `app/android/key.properties` (never commit it):
+   ```properties
+   storePassword=...
+   keyPassword=...
+   keyAlias=upload
+   storeFile=/home/you/kachipapa-upload.jks
+   ```
+3. Build:
+   ```bash
+   cd app
+   flutter build appbundle --release --dart-define=API_BASE_URL=https://<your-service>.onrender.com/api   # Play Store
+   flutter build apk --release --dart-define=API_BASE_URL=https://<your-service>.onrender.com/api         # direct install
+   ```
+
+The Android application ID is `com.kachipapa.store`.
+
+## How the pieces fit
+
+```
+Flutter app (web / Android)
+        │  HTTPS, JSON, Bearer token
+        ▼
+NestJS API  ── /api/products, /api/orders, /api/customer/…, /api/admin/…
+        │
+        ▼
+PostgreSQL   products · orders · customers · inventory_transactions · reviews · wishlist_items · notifications · settings · admin
+```
+
+- **Checkout** sends only product IDs, quantities and sizes. The API looks up prices, applies the delivery fee from store settings, reserves stock in a database transaction and notifies the admin.
+- **Payments**: orders start as `pending`. The admin confirms Airtel Money / Mpamba payments in **Orders → Record Payment** with the transaction ID. (Automatic Pachangu payment integration is not built yet.)
+- **Stock** changes are logged in `inventory_transactions`; cancelling an order puts its items back in stock.
+- **Customers** can check out as guests; logged-in customers get order history, a saved wishlist, a default address and reviews. Anyone can track an order with its number and phone.
+
+See [`backend/README.md`](backend/README.md) for the full API list.
