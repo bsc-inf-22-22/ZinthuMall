@@ -369,7 +369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.primaryRed,
                       borderRadius: BorderRadius.circular(40)),
-                    child: Text('NEW COLLECTION 2025',
+                    child: Text('NEW COLLECTION',
                       style: GoogleFonts.dmSans(
                         color: Colors.white, fontSize: 9,
                         fontWeight: FontWeight.w700, letterSpacing: 1.0),

@@ -73,7 +73,7 @@ class HomeHeroBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // "NEW COLLECTION 2025" tag
+          // "NEW COLLECTION" tag
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -81,7 +81,7 @@ class HomeHeroBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppTheme.radiusPill),
             ),
             child: Text(
-              'NEW COLLECTION 2025',
+              'NEW COLLECTION',
               style: GoogleFonts.dmSans(
                 color: Colors.white,
                 fontSize: 10,
