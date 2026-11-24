@@ -1,35 +1,37 @@
-version: '3.8'
-
+# Local development: Postgres + API.
+#   docker compose up --build
+# API: http://localhost:3000/api   (health check: /api/health)
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: zinthumall_postgres
+  db:
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 6369
-      POSTGRES_DB: zinthumall_db
+      POSTGRES_USER: kachipapa
+      POSTGRES_PASSWORD: kachipapa-dev   # local only
+      POSTGRES_DB: kachipapa
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - zinthumall_network
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kachipapa"]
+      interval: 5s
+      retries: 10
 
-  app:
-    build: .
-    container_name: zinthumall_inventory
+  api:
+    build: ./backend
     environment:
-      DATABASE_URL: postgresql://postgres:6369@postgres:5432/zinthumall_db
+      NODE_ENV: development
+      DATABASE_URL: postgresql://kachipapa:kachipapa-dev@db:5432/kachipapa
+      JWT_SECRET: local-development-secret-change-me
+      ADMIN_SETUP_KEY: local-setup-key
+    env_file:
+      - path: ./backend/.env   # optional: Cloudinary keys etc.
+        required: false
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
-    networks:
-      - zinthumall_network
-
-networks:
-  zinthumall_network:
-    driver: bridge
+      db:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  db_data:
