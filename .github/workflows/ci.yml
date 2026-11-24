@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Backend URL the web build talks to, e.g. https://kachipapa-api.onrender.com/api"
+        required: true
 
 jobs:
   backend:
@@ -50,7 +55,9 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - name: Build web
-        run: flutter build web --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'http://localhost:3000/api' }}
+        run: flutter build web --release --dart-define=API_BASE_URL="$API_BASE_URL"
+        env:
+          API_BASE_URL: ${{ inputs.api_base_url || vars.API_BASE_URL || 'http://localhost:3000/api' }}
       - uses: actions/upload-artifact@v4
         with:
           name: web-build

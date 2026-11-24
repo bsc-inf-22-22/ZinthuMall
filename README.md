@@ -66,7 +66,9 @@ cd app
 flutter build web --release --dart-define=API_BASE_URL=https://<your-service>.onrender.com/api
 ```
 
-Then drag `app/build/web` onto Netlify (**Sites → Add new site → Deploy manually**), or deploy with `netlify deploy --prod --dir build/web`. Add the Netlify URL to `CORS_ORIGINS` on the backend.
+No Flutter on your machine? On GitHub go to **Actions → CI → Run workflow**, enter the backend URL, and download the `web-build` artifact when it finishes.
+
+Then drag `app/build/web` (or the unzipped artifact) onto Netlify (**Sites → Add new site → Deploy manually**), or deploy with `netlify deploy --prod --dir build/web`. Add the Netlify URL to `CORS_ORIGINS` on the backend.
 
 ### Android app
 
