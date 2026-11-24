@@ -504,7 +504,7 @@ class _HomeCategoryScreenState extends ConsumerState<HomeCategoryScreen> {
           Text(
             _selectedSubCategory == 'all'
                 ? 'No home products yet'
-                : 'No ${_selectedSubCategory} products',
+                : 'No $_selectedSubCategory products',
             style: GoogleFonts.playfairDisplay(
                 fontSize: 20, fontWeight: FontWeight.w700),
           ),

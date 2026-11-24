@@ -669,6 +669,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               await ref.read(apiServiceProvider).clearAdminToken();
+              if (!context.mounted || !ctx.mounted) return;
               ref.read(adminAuthProvider.notifier).state  = false;
               ref.read(adminNameProvider.notifier).state  = '';
               ref.read(adminEmailProvider.notifier).state = '';
@@ -881,7 +882,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final _descController      = TextEditingController();
 
   String       _category = 'mens_clothing';
-  List<String> _selectedSizes = [];
+  final List<String> _selectedSizes = [];
   bool         _isSaving  = false;
 
   // Image picker state
@@ -929,6 +930,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
         _imageBytes  = bytes;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not pick image: $e'),
         backgroundColor: AppTheme.primaryRed,
@@ -1036,7 +1038,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                         // Category
                         _lbl('Category *'),
                         DropdownButtonFormField<String>(
-                          value: _category,
+                          initialValue: _category,
                           decoration: _dec(''),
                           items: const [
                             DropdownMenuItem(value: 'mens_clothing',   child: Text("👔 Men's Clothing")),

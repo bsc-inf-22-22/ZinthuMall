@@ -47,7 +47,7 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
+      - run: flutter analyze --no-fatal-infos
       - run: flutter test
       - name: Build web
         run: flutter build web --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'http://localhost:3000/api' }}

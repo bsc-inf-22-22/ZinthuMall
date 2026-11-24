@@ -38,8 +38,6 @@ class _MensCategoryScreenState extends State<MensCategoryScreen> {
   bool   suits    = false;
   bool   tshirts  = false;
   bool   shorts   = false;
-  String condition = 'All';
-  int    minRating = 0;
   String sortBy    = 'Most Popular';
 
   // ── Price range ────────────────────────────────────────────────
@@ -155,8 +153,6 @@ class _MensCategoryScreenState extends State<MensCategoryScreen> {
   void _clearFilters() {
     setState(() {
       shirts = trousers = jackets = suits = tshirts = shorts = false;
-      condition = 'All';
-      minRating = 0;
       _minPriceCtrl.clear();
       _maxPriceCtrl.clear();
       _priceError = null;
@@ -164,12 +160,6 @@ class _MensCategoryScreenState extends State<MensCategoryScreen> {
     _fetchProducts();
   }
 
-  String _fmt(double price) {
-    final s = price.toStringAsFixed(0);
-    return s.length > 3
-        ? 'MK ${s.substring(0, s.length - 3)},${s.substring(s.length - 3)}'
-        : 'MK $s';
-  }
 
   // ═══════════════════════════════════════════════════════════════
   //  BUILD
@@ -503,52 +493,6 @@ class _MensCategoryScreenState extends State<MensCategoryScreen> {
                   .map(_sizeChip)
                   .toList(),
             ),
-            const SizedBox(height: 14),
-            _sLabel('Condition'),
-            const SizedBox(height: 4),
-            ...['New', 'Used', 'All'].map((e) =>
-                RadioListTile<String>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: e,
-                  groupValue: condition,
-                  onChanged: (v) =>
-                      setState(() => condition = v!),
-                  title: Text(e,
-                      style: const TextStyle(fontSize: 13)),
-                )),
-            const SizedBox(height: 10),
-            _sLabel('Rating'),
-            const SizedBox(height: 4),
-            ...[
-              (5, '★★★★★ 5 stars'),
-              (4, '★★★★☆ 4+ stars'),
-              (3, '★★★☆☆ 3+ stars'),
-            ].map((e) => InkWell(
-                  onTap: () =>
-                      setState(() => minRating = e.$1),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
-                      children: [
-                        Radio<int>(
-                          value: e.$1,
-                          groupValue: minRating,
-                          onChanged: (v) =>
-                              setState(() => minRating = v!),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        Text(e.$2,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange)),
-                      ],
-                    ),
-                  ),
-                )),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

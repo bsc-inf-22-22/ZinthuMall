@@ -25,7 +25,6 @@ class CartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
     final cart      = ref.read(cartProvider.notifier);
-    final isMobile  = MediaQuery.of(context).size.width < 700;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F3),

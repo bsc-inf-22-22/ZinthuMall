@@ -118,8 +118,8 @@ class WishlistScreen extends ConsumerWidget {
                     child: Container(
                       height: 150, width: double.infinity,
                       color: const Color(0xFFF4F4F2),
-                      child: Center(child: Text('📦',
-                        style: const TextStyle(fontSize: 50)))),
+                      child: const Center(child: Text('📦',
+                        style: TextStyle(fontSize: 50)))),
                   ),
                   Positioned(top: 8, right: 8,
                     child: GestureDetector(

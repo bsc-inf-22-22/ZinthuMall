@@ -110,7 +110,6 @@ class _CustomerAuthScreenState extends ConsumerState<CustomerAuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F3),

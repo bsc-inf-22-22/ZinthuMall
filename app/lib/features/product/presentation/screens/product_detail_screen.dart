@@ -274,7 +274,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             color: AppTheme.primaryRed)),
     if (_product.hasDiscount) ...[
       const SizedBox(width: 10),
-      Text('MK ${_product.originalPrice!.toStringAsFixed(0)}',
+      Text('MK ${_product.originalPrice.toStringAsFixed(0)}',
           style: GoogleFonts.dmSans(
               fontSize: 15, color: AppTheme.textHint,
               decoration: TextDecoration.lineThrough)),

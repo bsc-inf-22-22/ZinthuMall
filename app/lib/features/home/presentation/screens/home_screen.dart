@@ -19,7 +19,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/products_provider.dart';
 import '../../../../core/providers/cart_provider.dart';
-import '../../../category/presentation/screens/home_category_screen.dart';
 import '../../data/models/product_model.dart';
 import '../widgets/product_card.dart';
 

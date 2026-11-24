@@ -156,7 +156,7 @@ class _ProductCardState extends State<ProductCard> {
                       color: AppTheme.primaryRed)),
               if (product.hasDiscount) ...[
                 const SizedBox(width: 6),
-                Text('MK ${product.originalPrice!.toStringAsFixed(0)}',
+                Text('MK ${product.originalPrice.toStringAsFixed(0)}',
                     style: GoogleFonts.dmSans(
                         fontSize: 11, color: AppTheme.textHint,
                         decoration: TextDecoration.lineThrough)),

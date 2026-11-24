@@ -11,7 +11,6 @@ import '../../../../core/services/api_service.dart';
 import '../../../../core/providers/cart_provider.dart';
 import '../../../home/data/models/product_model.dart';
 import '../../../home/presentation/widgets/product_card.dart';
-import '../../../product/presentation/screens/product_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -32,7 +31,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final List<String> _categories = ['All', ...AppConstants.categoryLabels.values];
 
   // Recent searches — stored locally
-  List<String> _recentSearches = [
+  final List<String> _recentSearches = [
     'Oxford Shirt', 'Dress', 'Chitenje', 'Shoes',
   ];
 

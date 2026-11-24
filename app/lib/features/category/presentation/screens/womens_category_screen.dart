@@ -182,12 +182,6 @@ class _WomensCategoryScreenState extends State<WomensCategoryScreen> {
     _fetchProducts();
   }
 
-  String _fmt(double price) {
-    final s = price.toStringAsFixed(0);
-    return s.length > 3
-        ? 'MK ${s.substring(0, s.length - 3)},${s.substring(s.length - 3)}'
-        : 'MK $s';
-  }
 
   // ════════════════════════════════════════════════════════════════
   //  BUILD

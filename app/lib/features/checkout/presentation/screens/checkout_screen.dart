@@ -305,11 +305,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     children: [
       _sectionTitle('Payment Method'),
       const SizedBox(height: 16),
-      ...[
-        ('airtel_money', 'Airtel Money', '📱', 'Pay with Airtel Money'),
-        ('tnm_mpamba',   'TNM Mpamba',   '📲', 'Pay with TNM Mpamba'),
-        ('cash',         'Cash on Delivery', '💵', 'Pay when you receive'),
-      ].map((item) => _paymentOption(item.$1, item.$2, item.$3, item.$4)),
+      RadioGroup<String>(
+        groupValue: _paymentMethod,
+        onChanged: (v) => setState(() => _paymentMethod = v ?? _paymentMethod),
+        child: Column(children: [
+          for (final item in [
+            ('airtel_money', 'Airtel Money', '📱', 'Pay with Airtel Money'),
+            ('tnm_mpamba',   'TNM Mpamba',   '📲', 'Pay with TNM Mpamba'),
+            ('cash',         'Cash on Delivery', '💵', 'Pay when you receive'),
+          ]) _paymentOption(item.$1, item.$2, item.$3, item.$4),
+        ]),
+      ),
       const SizedBox(height: 24),
       Container(
         padding: const EdgeInsets.all(16),
@@ -321,7 +327,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const Icon(Icons.info_outline, color: Colors.blue, size: 20),
           const SizedBox(width: 10),
           Expanded(child: Text(
-            'Your payment details are secure and encrypted.',
+            'After you place the order, the store confirms your payment and delivery by phone.',
             style: GoogleFonts.dmSans(
               fontSize: 12, color: Colors.blue.shade700))),
         ]),
@@ -356,9 +362,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           )),
           Radio<String>(
             value: value,
-            groupValue: _paymentMethod,
             activeColor: AppTheme.primaryRed,
-            onChanged: (v) => setState(() => _paymentMethod = v!),
           ),
         ]),
       ),
@@ -405,8 +409,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF4F4F2),
               borderRadius: BorderRadius.circular(8)),
-            child: Center(child: Text('📦',
-              style: const TextStyle(fontSize: 24)))),
+            child: const Center(child: Text('📦',
+              style: TextStyle(fontSize: 24)))),
           const SizedBox(width: 12),
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
