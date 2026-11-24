@@ -43,8 +43,10 @@ export class CreateOrderDto {
   @MaxLength(100)
   customerName!: string;
 
+  /** Optional: many customers order with a phone number only. */
+  @IsOptional()
   @IsEmail()
-  customerEmail!: string;
+  customerEmail?: string;
 
   @Matches(/^(\+?265|0)\d{8,9}$/, {
     message: 'customerPhone must be a valid Malawi number',

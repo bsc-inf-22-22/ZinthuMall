@@ -95,7 +95,7 @@ export class OrdersService {
         em.getRepository(Order).create({
           customerId: customerId ?? null,
           customerName: dto.customerName.trim(),
-          customerEmail: dto.customerEmail.toLowerCase(),
+          customerEmail: dto.customerEmail?.toLowerCase() ?? null,
           customerPhone: dto.customerPhone,
           deliveryAddress: dto.deliveryAddress.trim(),
           deliveryCity: dto.deliveryCity.trim(),

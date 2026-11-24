@@ -45,8 +45,8 @@ export class Order {
   @Column()
   customerName!: string;
 
-  @Column()
-  customerEmail!: string;
+  @Column({ type: 'varchar', nullable: true })
+  customerEmail?: string | null;
 
   @Column()
   customerPhone!: string;

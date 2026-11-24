@@ -30,6 +30,12 @@ export class ReviewsController {
   }
 
   @UseGuards(CustomerGuard)
+  @Get('mine')
+  mine(@CurrentUser() user: JwtPayload) {
+    return this.reviewsService.findForCustomer(user.sub);
+  }
+
+  @UseGuards(CustomerGuard)
   @Post()
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateReviewDto) {
     return this.reviewsService.create(user.sub, dto);

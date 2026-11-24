@@ -54,6 +54,13 @@ export class ReviewsService {
     return review;
   }
 
+  findForCustomer(customerId: number): Promise<Review[]> {
+    return this.repo.find({
+      where: { customerId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   findByProduct(productId: number): Promise<Review[]> {
     return this.repo.find({
       where: { productId },

@@ -235,9 +235,12 @@ describeIfDb('Kachipapa Store API (e2e)', () => {
       await http.post('/api/orders').send(order(5)).expect(400);
     });
 
-    it('allows guest checkout', async () => {
-      const res = await http.post('/api/orders').send(order(1)).expect(201);
+    it('allows guest checkout without an email', async () => {
+      const guestOrder: Partial<ReturnType<typeof order>> = order(1);
+      delete guestOrder.customerEmail;
+      const res = await http.post('/api/orders').send(guestOrder).expect(201);
       expect(res.body.customerId).toBeNull();
+      expect(res.body.customerEmail).toBeNull();
     });
 
     it("shows the customer's own orders", async () => {
@@ -348,6 +351,9 @@ describeIfDb('Kachipapa Store API (e2e)', () => {
         await http.get(`/api/reviews/product/${shirtId}/summary`).expect(200)
       ).body;
       expect(summary).toEqual({ reviewCount: 1, rating: 5 });
+      const mine = (await http.get('/api/reviews/mine').set(auth).expect(200))
+        .body;
+      expect(mine).toHaveLength(1);
     });
 
     it('applies the delivery fee below the free-delivery threshold', async () => {
