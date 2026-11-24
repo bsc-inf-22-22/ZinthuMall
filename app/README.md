@@ -29,3 +29,7 @@ lib/
 The store admin opens the dashboard by long-pressing the logo on the home page (or `/#/admin`).
 
 See the [root README](../README.md) for deployment.
+
+## App icon
+
+`branding/app-icon-1024.png` is the source for the launcher icons (Android `mipmap-*`, web `icons/` and `favicon.png`, iOS `AppIcon`). It's a placeholder "K" monogram in the store red, set in Playfair Display (SIL Open Font License). To replace it with a real logo, swap the images, or add `flutter_launcher_icons` and point it at the new file.
