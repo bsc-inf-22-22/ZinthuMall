@@ -41,6 +41,11 @@ export class Product {
   @Column('simple-array', { nullable: true })
   sizes?: string[] | null;
 
+  /** All product photos, in display order. The first one is the cover. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  imageUrls!: string[];
+
+  /** Cover photo (always imageUrls[0]). Kept for clients that show one image. */
   @Column({ type: 'varchar', nullable: true })
   imageUrl?: string | null;
 

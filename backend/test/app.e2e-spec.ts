@@ -117,6 +117,50 @@ describeIfDb('Kachipapa Store API (e2e)', () => {
       expect(res.body.sizes).toEqual(['S', 'M', 'L']);
     });
 
+    it('starts a product without photos with an empty gallery', async () => {
+      const res = await http.get(`/api/products/${shirtId}`).expect(200);
+      expect(res.body.imageUrls).toEqual([]);
+      expect(res.body.imageUrl).toBeNull();
+    });
+
+    it('refuses more than 8 photos per product', async () => {
+      const png = Buffer.from('89504e470d0a1a0a', 'hex');
+      let req = http
+        .post('/api/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('name', 'Too many photos')
+        .field('category', 'mens_clothing')
+        .field('price', '100')
+        .field('stock', '1');
+      for (let i = 0; i < 9; i++) {
+        req = req.attach('images', png, {
+          filename: `p${i}.png`,
+          contentType: 'image/png',
+        });
+      }
+      await req.expect(400);
+    });
+
+    it('explains that photo uploads need Cloudinary keys', () =>
+      http
+        .patch(`/api/products/${shirtId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('images', Buffer.from('89504e470d0a1a0a', 'hex'), {
+          filename: 'p.png',
+          contentType: 'image/png',
+        })
+        .expect(503));
+
+    it('ignores removeImageUrls that are not on the product', async () => {
+      const res = await http
+        .patch(`/api/products/${shirtId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('removeImageUrls', JSON.stringify(['https://example.com/x.jpg']))
+        .expect(200);
+      expect(res.body.imageUrls).toEqual([]);
+      expect(res.body.removeImageUrls).toBeUndefined();
+    });
+
     it('lists products publicly with numeric prices', async () => {
       const res = await http.get('/api/products').expect(200);
       expect(res.body).toHaveLength(1);

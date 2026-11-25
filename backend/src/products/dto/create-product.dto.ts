@@ -14,7 +14,7 @@ import { Transform, Type } from 'class-transformer';
 import { PRODUCT_CATEGORIES } from '../categories';
 
 /** Multipart forms send arrays as "S,M,L" or as a JSON string; accept both. */
-function toStringArray({ value }: { value: unknown }): unknown {
+export function toStringArray({ value }: { value: unknown }): unknown {
   if (Array.isArray(value)) return value.map(String);
   if (typeof value !== 'string' || value.trim() === '') return [];
   const trimmed = value.trim();

@@ -40,6 +40,26 @@ void main() {
       expect(_product(stock: 3).stockStatus, 'LOW_STOCK');
       expect(_product(stock: 20).stockStatus, 'IN_STOCK');
     });
+
+    test('reads the photo gallery, falling back to the single cover photo', () {
+      final base = {
+        'id': 2, 'name': 'Dress', 'category': 'womens_clothing',
+        'price': 9000, 'stock': 1,
+        'createdAt': '2026-11-25T08:00:00.000Z',
+        'updatedAt': '2026-11-25T08:00:00.000Z',
+      };
+      final gallery = ProductModel.fromJson({
+        ...base,
+        'imageUrl': 'https://img/a.jpg',
+        'imageUrls': ['https://img/a.jpg', 'https://img/b.jpg'],
+      });
+      expect(gallery.photos, ['https://img/a.jpg', 'https://img/b.jpg']);
+
+      final oldProduct = ProductModel.fromJson({...base, 'imageUrl': 'https://img/a.jpg'});
+      expect(oldProduct.photos, ['https://img/a.jpg']);
+
+      expect(ProductModel.fromJson(base).photos, isEmpty);
+    });
   });
 
   group('CartNotifier', () {

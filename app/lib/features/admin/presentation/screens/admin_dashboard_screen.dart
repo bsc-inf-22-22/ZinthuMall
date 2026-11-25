@@ -14,11 +14,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/providers/products_provider.dart';
+import '../../../../core/services/api_service.dart' show ImageUpload;
 import '../../../../features/home/data/models/product_model.dart';
 import 'admin_login_screen.dart';
 import 'admin_orders_screen.dart';
@@ -885,11 +885,10 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   final List<String> _selectedSizes = [];
   bool         _isSaving  = false;
 
-  // Image picker state
-  // XFile    = the picked image file (web + mobile compatible)
-  // Uint8List = the raw bytes we send to the API
-  XFile?     _pickedImage;
-  Uint8List? _imageBytes;
+  // Picked photos (bytes are read straight away so they work on web
+  // and mobile). The first photo is the cover shown on product cards.
+  static const int _maxPhotos = 8; // same limit as the API
+  final List<ImageUpload> _photos = [];
   final _picker = ImagePicker();
 
   final List<String> _allSizes = ['XS','S','M','L','XL','XXL','28','30','32','34','36','37','38','39','40'];
@@ -905,30 +904,36 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
   }
 
   // ----------------------------------------------------------
-  // PICK IMAGE FROM DEVICE
-  // On web: opens file picker dialog
-  // On mobile: opens gallery
-  // We read bytes immediately so we can:
-  //   1. Show preview in the form
-  //   2. Send bytes to the API on save
+  // PICK PHOTOS FROM DEVICE
+  // On web: opens a file dialog (hold Ctrl/Shift to choose several)
+  // On mobile: opens the gallery with multi-select
   // ----------------------------------------------------------
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
+    final room = _maxPhotos - _photos.length;
+    if (room <= 0) return;
     try {
-      final XFile? picked = await _picker.pickImage(
-        source: ImageSource.gallery,
+      final List<XFile> picked = await _picker.pickMultiImage(
         maxWidth:  1200,  // resize to reduce upload size
         maxHeight: 1200,
         imageQuality: 85, // slight compression
       );
-      if (picked == null) return; // user cancelled
+      if (picked.isEmpty) return; // user cancelled
 
-      // Read bytes — works on both web and mobile
-      final bytes = await picked.readAsBytes();
+      final chosen = picked.take(room).toList();
+      final uploads = <ImageUpload>[];
+      for (final file in chosen) {
+        uploads.add(ImageUpload(await file.readAsBytes(), file.name));
+      }
+      if (!mounted) return;
+      setState(() => _photos.addAll(uploads));
 
-      setState(() {
-        _pickedImage = picked;
-        _imageBytes  = bytes;
-      });
+      if (picked.length > room) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Only $_maxPhotos photos per product. '
+              'The first $room were added.'),
+          backgroundColor: AppTheme.accentOrange,
+        ));
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -956,8 +961,7 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                          ? _descController.text.trim()
                          : null,
         sizes:         _selectedSizes.isNotEmpty ? _selectedSizes : null,
-        imageBytes:    _imageBytes,
-        imageFileName: _pickedImage?.name,
+        images:        _photos,
       );
 
       if (!mounted) return;
@@ -1105,24 +1109,26 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Product photo (uploaded to Cloudinary by the API)
-                        _lbl('Product Photo (optional)'),
-                        Row(children: [
-                          if (_imageBytes != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.memory(_imageBytes!, width: 64, height: 64, fit: BoxFit.cover),
-                              ),
-                            ),
-                          OutlinedButton.icon(
-                            onPressed: _pickImage,
-                            icon: const Icon(Icons.photo_library_outlined, color: AppTheme.primaryRed),
-                            label: Text(_imageBytes == null ? 'Choose photo' : 'Change photo',
-                                style: GoogleFonts.dmSans(color: AppTheme.primaryRed)),
+                        // Product photos (uploaded to Cloudinary by the API)
+                        _lbl('Product Photos (optional, up to $_maxPhotos)'),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            for (var i = 0; i < _photos.length; i++)
+                              _photoThumb(i),
+                            if (_photos.length < _maxPhotos)
+                              _addPhotoTile(),
+                          ],
+                        ),
+                        if (_photos.length > 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              'The first photo is the cover. Tap a photo to make it the cover.',
+                              style: GoogleFonts.dmSans(
+                                  fontSize: 11, color: AppTheme.textHint)),
                           ),
-                        ]),
                         const SizedBox(height: 16),
 
                         _lbl('Available Sizes (optional)'),
@@ -1202,6 +1208,83 @@ class _AddProductSheetState extends ConsumerState<_AddProductSheet> {
       },
     );
   }
+
+  // One picked photo: tap to make it the cover, X to remove it.
+  Widget _photoThumb(int i) {
+    final isCover = i == 0;
+    return GestureDetector(
+      onTap: isCover
+          ? null
+          : () => setState(() => _photos.insert(0, _photos.removeAt(i))),
+      child: Stack(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isCover ? AppTheme.primaryRed : AppTheme.borderColor,
+                width: isCover ? 2 : 1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Image.memory(_photos[i].bytes,
+                width: 76, height: 76, fit: BoxFit.cover),
+          ),
+        ),
+        if (isCover)
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryRed,
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
+              ),
+              child: Text('Cover', textAlign: TextAlign.center,
+                  style: GoogleFonts.dmSans(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      color: Colors.white)),
+            ),
+          ),
+        Positioned(
+          top: 2, right: 2,
+          child: InkWell(
+            onTap: () => setState(() => _photos.removeAt(i)),
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                  color: Colors.black54, shape: BoxShape.circle),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _addPhotoTile() => InkWell(
+    onTap: _pickImages,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      width: 76, height: 76,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F4F2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.primaryRed.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.add_photo_alternate_outlined,
+              color: AppTheme.primaryRed),
+          const SizedBox(height: 4),
+          Text(_photos.isEmpty ? 'Add photos' : 'Add more',
+              style: GoogleFonts.dmSans(
+                  fontSize: 10, color: AppTheme.primaryRed,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    ),
+  );
 
   Widget _lbl(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 8),

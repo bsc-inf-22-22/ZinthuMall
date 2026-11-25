@@ -22,6 +22,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 import '../../features/home/data/models/product_model.dart';
 
+/// A photo picked on the device, ready to upload.
+class ImageUpload {
+  final Uint8List bytes;
+  final String fileName;
+  const ImageUpload(this.bytes, this.fileName);
+}
+
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -128,8 +135,7 @@ class ApiService {
     int? discount,
     String? description,
     List<String>? sizes,
-    Uint8List? imageBytes,
-    String? imageFileName,
+    List<ImageUpload> images = const [],
   }) {
     return _sendProductForm('POST', '/products', {
       'name': name,
@@ -139,26 +145,30 @@ class ApiService {
       if (discount != null) 'discount': discount.toString(),
       if (description != null && description.isNotEmpty) 'description': description,
       if (sizes != null && sizes.isNotEmpty) 'sizes': sizes.join(','),
-    }, imageBytes, imageFileName);
+    }, images);
   }
 
+  /// [images] are added after the existing photos;
+  /// [removeImageUrls] are deleted from the product.
   Future<ProductModel> updateProduct(
     int id,
     Map<String, dynamic> fields, {
-    Uint8List? imageBytes,
-    String? imageFileName,
+    List<ImageUpload> images = const [],
+    List<String> removeImageUrls = const [],
   }) {
     final form = fields.map((key, value) =>
         MapEntry(key, value is List ? value.join(',') : value.toString()));
-    return _sendProductForm('PATCH', '/products/$id', form, imageBytes, imageFileName);
+    if (removeImageUrls.isNotEmpty) {
+      form['removeImageUrls'] = jsonEncode(removeImageUrls);
+    }
+    return _sendProductForm('PATCH', '/products/$id', form, images);
   }
 
   Future<ProductModel> _sendProductForm(
     String method,
     String path,
     Map<String, String> fields,
-    Uint8List? imageBytes,
-    String? imageFileName,
+    List<ImageUpload> images,
   ) async {
     final token = await getAdminToken();
     final request = http.MultipartRequest(method, _uri(path))
@@ -166,19 +176,20 @@ class ApiService {
       ..headers['Accept'] = 'application/json'
       ..fields.addAll(fields);
 
-    if (imageBytes != null && imageFileName != null) {
-      final mime = (lookupMimeType(imageFileName) ?? 'image/jpeg').split('/');
+    for (final image in images) {
+      final mime = (lookupMimeType(image.fileName) ?? 'image/jpeg').split('/');
       request.files.add(http.MultipartFile.fromBytes(
-        'image',
-        imageBytes,
-        filename: imageFileName,
+        'images',
+        image.bytes,
+        filename: image.fileName,
         contentType: MediaType(mime[0], mime[1]),
       ));
     }
 
     final data = await _send(
       request.send().then(http.Response.fromStream),
-      timeout: const Duration(seconds: 60),
+      // several photos over a slow connection can take a while
+      timeout: Duration(seconds: 60 + 30 * images.length),
     );
     return ProductModel.fromJson(data as Map<String, dynamic>);
   }

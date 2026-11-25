@@ -8,26 +8,37 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ProductsService } from './products.service';
+import { ProductImageFiles, ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminGuard } from '../auth/guards';
 import {
   imageFileFilter,
   MAX_IMAGE_BYTES,
+  MAX_PRODUCT_IMAGES,
 } from '../cloudinary/image-file.filter';
 
-const imageUpload = FileInterceptor('image', {
-  storage: memoryStorage(),
-  limits: { fileSize: MAX_IMAGE_BYTES },
-  fileFilter: imageFileFilter,
-});
+/**
+ * "images": one or more photos (the admin app sends this).
+ * "image": a single photo, as older app versions send it.
+ */
+const imageUpload = FileFieldsInterceptor(
+  [
+    { name: 'images', maxCount: MAX_PRODUCT_IMAGES },
+    { name: 'image', maxCount: 1 },
+  ],
+  {
+    storage: memoryStorage(),
+    limits: { fileSize: MAX_IMAGE_BYTES },
+    fileFilter: imageFileFilter,
+  },
+);
 
 @Controller('products')
 export class ProductsController {
@@ -58,9 +69,9 @@ export class ProductsController {
   @UseInterceptors(imageUpload)
   create(
     @Body() dto: CreateProductDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files?: ProductImageFiles,
   ) {
-    return this.productsService.create(dto, file);
+    return this.productsService.create(dto, files);
   }
 
   @UseGuards(AdminGuard)
@@ -69,9 +80,9 @@ export class ProductsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFiles() files?: ProductImageFiles,
   ) {
-    return this.productsService.update(id, dto, file);
+    return this.productsService.update(id, dto, files);
   }
 
   @UseGuards(AdminGuard)

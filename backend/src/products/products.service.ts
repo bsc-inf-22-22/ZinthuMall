@@ -1,10 +1,23 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { MAX_PRODUCT_IMAGES } from '../cloudinary/image-file.filter';
+
+/** Files from the multipart form, grouped by field name. */
+export interface ProductImageFiles {
+  images?: Express.Multer.File[];
+  /** Single photo sent by older app versions; replaces all existing photos. */
+  image?: Express.Multer.File[];
+}
 
 @Injectable()
 export class ProductsService {
@@ -18,10 +31,23 @@ export class ProductsService {
 
   async create(
     dto: CreateProductDto,
-    file?: Express.Multer.File,
+    files?: ProductImageFiles,
   ): Promise<Product> {
-    const imageUrl = file ? await this.cloudinary.uploadImage(file) : null;
-    return this.productRepo.save(this.productRepo.create({ ...dto, imageUrl }));
+    const newFiles = [...(files?.images ?? []), ...(files?.image ?? [])];
+    this.checkImageCount(newFiles.length);
+    const imageUrls = await this.uploadAll(newFiles);
+    try {
+      return await this.productRepo.save(
+        this.productRepo.create({
+          ...dto,
+          imageUrls,
+          imageUrl: imageUrls[0] ?? null,
+        }),
+      );
+    } catch (err) {
+      await this.safeDeleteImages(imageUrls);
+      throw err;
+    }
   }
 
   findAll(): Promise<Product[]> {
@@ -53,36 +79,93 @@ export class ProductsService {
       .getMany();
   }
 
+  /**
+   * Updates fields and photos. New photos in "images" are added after the
+   * existing ones; URLs in removeImageUrls are deleted. A photo in the
+   * legacy "image" field replaces all existing photos.
+   */
   async update(
     id: number,
     dto: UpdateProductDto,
-    file?: Express.Multer.File,
+    files?: ProductImageFiles,
   ): Promise<Product> {
+    const { removeImageUrls = [], ...fields } = dto;
     const product = await this.findOne(id);
-    if (file) {
-      const oldUrl = product.imageUrl;
-      product.imageUrl = await this.cloudinary.uploadImage(file);
-      if (oldUrl) await this.safeDeleteImage(oldUrl);
+    const current = this.imagesOf(product);
+
+    const legacy = files?.image ?? [];
+    const removed = legacy.length
+      ? current
+      : current.filter((url) => removeImageUrls.includes(url));
+    const kept = current.filter((url) => !removed.includes(url));
+    const newFiles = [...legacy, ...(files?.images ?? [])];
+    this.checkImageCount(kept.length + newFiles.length);
+
+    const added = await this.uploadAll(newFiles);
+    product.imageUrls = [...kept, ...added];
+    product.imageUrl = product.imageUrls[0] ?? null;
+    Object.assign(product, fields);
+    let saved: Product;
+    try {
+      saved = await this.productRepo.save(product);
+    } catch (err) {
+      await this.safeDeleteImages(added);
+      throw err;
     }
-    Object.assign(product, dto);
-    return this.productRepo.save(product);
+    await this.safeDeleteImages(removed);
+    return saved;
   }
 
   async remove(id: number): Promise<{ message: string }> {
     const product = await this.findOne(id);
+    const images = this.imagesOf(product);
     await this.productRepo.remove(product);
-    if (product.imageUrl) await this.safeDeleteImage(product.imageUrl);
+    await this.safeDeleteImages(images);
     return { message: `Product #${id} deleted successfully` };
   }
 
-  /** A failed image cleanup must not fail the user's request. */
-  private async safeDeleteImage(url: string) {
-    try {
-      await this.cloudinary.deleteImage(url);
-    } catch (err) {
-      this.logger.warn(
-        `Could not delete image ${url}: ${(err as Error).message}`,
+  /** Products saved before the gallery existed may only have imageUrl. */
+  private imagesOf(product: Product): string[] {
+    if (product.imageUrls?.length) return product.imageUrls;
+    return product.imageUrl ? [product.imageUrl] : [];
+  }
+
+  private checkImageCount(count: number) {
+    if (count > MAX_PRODUCT_IMAGES) {
+      throw new BadRequestException(
+        `A product can have at most ${MAX_PRODUCT_IMAGES} photos`,
       );
     }
+  }
+
+  /** Uploads in parallel; if any upload fails, the others are cleaned up. */
+  private async uploadAll(files: Express.Multer.File[]): Promise<string[]> {
+    const results = await Promise.allSettled(
+      files.map((file) => this.cloudinary.uploadImage(file)),
+    );
+    const urls = results
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => r.value);
+    const failed = results.find((r) => r.status === 'rejected');
+    if (failed) {
+      await this.safeDeleteImages(urls);
+      throw failed.reason;
+    }
+    return urls;
+  }
+
+  /** A failed image cleanup must not fail the user's request. */
+  private async safeDeleteImages(urls: string[]) {
+    await Promise.all(
+      urls.map(async (url) => {
+        try {
+          await this.cloudinary.deleteImage(url);
+        } catch (err) {
+          this.logger.warn(
+            `Could not delete image ${url}: ${(err as Error).message}`,
+          );
+        }
+      }),
+    );
   }
 }
