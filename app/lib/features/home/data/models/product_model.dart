@@ -23,7 +23,8 @@ class ProductModel {
   final int     stock;        // was stockQty — now matches DB column name
   final int?    discount;     // discount % e.g. 20 means 20% off
   final String? description;
-  final String? imageUrl;
+  final String? imageUrl;      // cover photo (first of imageUrls)
+  final List<String> imageUrls; // all photos, cover first
   final List<String> sizes;   // e.g. ['S', 'M', 'L', 'XL']
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -43,6 +44,7 @@ class ProductModel {
     this.discount,
     this.description,
     this.imageUrl,
+    this.imageUrls = const [],
     this.sizes = const [],
     required this.createdAt,
     required this.updatedAt,
@@ -54,6 +56,14 @@ class ProductModel {
   // ----------------------------------------------------------
   // COMPUTED PROPERTIES
   // ----------------------------------------------------------
+
+  /// Photos to show in the gallery. Falls back to the single cover
+  /// photo for products saved before galleries existed.
+  List<String> get photos {
+    if (imageUrls.isNotEmpty) return imageUrls;
+    if (imageUrl != null && imageUrl!.isNotEmpty) return [imageUrl!];
+    return const [];
+  }
 
   /// True if product has a discount percentage set
   bool get hasDiscount => discount != null && discount! > 0;
@@ -110,7 +120,8 @@ class ProductModel {
   //   "discount": 35,
   //   "description": "...",
   //   "sizes": ["S","M","L"],
-  //   "imageUrl": "https://...",
+  //   "imageUrl": "https://...",        ← cover photo
+  //   "imageUrls": ["https://...", ...], ← all photos
   //   "createdAt": "2025-01-10T00:00:00.000Z",
   //   "updatedAt": "2025-01-10T00:00:00.000Z"
   // }
@@ -126,6 +137,9 @@ class ProductModel {
       discount:    json['discount'] as int?,
       description: json['description'] as String?,
       imageUrl:    json['imageUrl'] as String?,
+      imageUrls: json['imageUrls'] is List
+          ? List<String>.from(json['imageUrls'] as List)
+          : const [],
       // sizes is stored as 'simple-array' in TypeORM
       // It comes back as a List or null
       sizes: json['sizes'] != null
@@ -166,6 +180,7 @@ class ProductModel {
     int?      discount,
     String?   description,
     String?   imageUrl,
+    List<String>? imageUrls,
     List<String>? sizes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -182,6 +197,7 @@ class ProductModel {
       discount:    discount    ?? this.discount,
       description: description ?? this.description,
       imageUrl:    imageUrl    ?? this.imageUrl,
+      imageUrls:   imageUrls   ?? this.imageUrls,
       sizes:       sizes       ?? this.sizes,
       createdAt:   createdAt   ?? this.createdAt,
       updatedAt:   updatedAt   ?? this.updatedAt,

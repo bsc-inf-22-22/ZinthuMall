@@ -243,14 +243,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     height: 320, width: double.infinity,
     color: _getCategoryColor(_product.category),
     child: Stack(children: [
-      Center(
-        child: _product.imageUrl != null && _product.imageUrl!.isNotEmpty
-            ? Image.network(_product.imageUrl!, fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  _getCategoryEmoji(_product.category),
-                  style: const TextStyle(fontSize: 120)))
-            : Text(_getCategoryEmoji(_product.category),
-                style: const TextStyle(fontSize: 120)),
+      Positioned.fill(
+        child: _product.photos.isNotEmpty
+            ? _ProductGallery(
+                // a new key resets the gallery when the photos change
+                key: ValueKey(_product.photos.join('|')),
+                photos: _product.photos,
+                fallback: Text(_getCategoryEmoji(_product.category),
+                    style: const TextStyle(fontSize: 120)),
+              )
+            : Center(child: Text(_getCategoryEmoji(_product.category),
+                style: const TextStyle(fontSize: 120))),
       ),
       if (_product.hasDiscount)
         Positioned(top: 16, left: 16,
@@ -534,4 +537,98 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       default:                return '📦';
     }
   }
+}
+
+// ===========================================================
+// PHOTO GALLERY: swipe between photos, or tap a dot / arrow
+// ===========================================================
+class _ProductGallery extends StatefulWidget {
+  final List<String> photos;
+  final Widget fallback; // shown if a photo fails to load
+
+  const _ProductGallery({super.key, required this.photos, required this.fallback});
+
+  @override
+  State<_ProductGallery> createState() => _ProductGalleryState();
+}
+
+class _ProductGalleryState extends State<_ProductGallery> {
+  final _controller = PageController();
+  int _index = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int i) => _controller.animateToPage(i,
+      duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.photos.length;
+    return Stack(children: [
+      PageView.builder(
+        controller: _controller,
+        itemCount: count,
+        onPageChanged: (i) => setState(() => _index = i),
+        itemBuilder: (_, i) => Center(
+          child: Image.network(widget.photos[i], fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => widget.fallback),
+        ),
+      ),
+      if (count > 1) ...[
+        // Arrows help on web, where swiping with a mouse is awkward
+        if (_index > 0)
+          Positioned(left: 8, top: 0, bottom: 0,
+            child: Center(child: _arrow(Icons.chevron_left, () => _goTo(_index - 1)))),
+        if (_index < count - 1)
+          Positioned(right: 8, top: 0, bottom: 0,
+            child: Center(child: _arrow(Icons.chevron_right, () => _goTo(_index + 1)))),
+        Positioned(left: 0, right: 0, bottom: 12,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < count; i++)
+                GestureDetector(
+                  onTap: () => _goTo(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == _index ? 18 : 7, height: 7,
+                    decoration: BoxDecoration(
+                      color: i == _index ? AppTheme.primaryRed : Colors.black26,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Positioned(top: 16, right: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+                color: Colors.black54, borderRadius: BorderRadius.circular(20)),
+            child: Text('${_index + 1}/$count',
+                style: GoogleFonts.dmSans(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          )),
+      ],
+    ]);
+  }
+
+  Widget _arrow(IconData icon, VoidCallback onTap) => Material(
+    color: Colors.white.withValues(alpha: 0.85),
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(icon, color: Colors.black87),
+      ),
+    ),
+  );
 }

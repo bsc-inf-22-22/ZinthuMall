@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB per photo
+export const MAX_PRODUCT_IMAGES = 8;
 
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 

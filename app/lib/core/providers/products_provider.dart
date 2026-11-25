@@ -2,8 +2,6 @@
 // FILE: lib/core/providers/products_provider.dart
 // =============================================================
 
-import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/data/models/product_model.dart';
@@ -48,8 +46,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
     int? discount,
     String? description,
     List<String>? sizes,
-    Uint8List? imageBytes,
-    String? imageFileName,
+    List<ImageUpload> images = const [],
   }) async {
     final created = await _api.createProduct(
       name: name,
@@ -59,8 +56,7 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
       discount: discount,
       description: description,
       sizes: sizes,
-      imageBytes: imageBytes,
-      imageFileName: imageFileName,
+      images: images,
     );
     state = AsyncData([created, ..._products]);
     return created;
@@ -69,11 +65,11 @@ class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
   Future<void> updateProduct(
     int id,
     Map<String, dynamic> fields, {
-    Uint8List? imageBytes,
-    String? imageFileName,
+    List<ImageUpload> images = const [],
+    List<String> removeImageUrls = const [],
   }) async {
     final updated = await _api.updateProduct(id, fields,
-        imageBytes: imageBytes, imageFileName: imageFileName);
+        images: images, removeImageUrls: removeImageUrls);
     state = AsyncData(_products.map((p) => p.id == id ? updated : p).toList());
   }
 
